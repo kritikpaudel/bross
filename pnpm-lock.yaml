@@ -107,6 +107,8 @@ settings:
 
 importers:
 
+  .: {}
+
   apps/api:
     dependencies:
       '@fastify/cookie':
