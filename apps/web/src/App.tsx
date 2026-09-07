@@ -194,8 +194,8 @@ function App() {
     return (
       <main className="app-loading">
         <img
-          src="/branding/bross-logo.jpg"
-          alt="Bross Solutions"
+          src="/branding/product/white-short.png"
+          alt=""
         />
 
         <span>
@@ -216,7 +216,7 @@ function App() {
         </strong>
 
         <span>
-          Check that the Bross API
+          Check that the API
           is running.
         </span>
 

@@ -10,7 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
 
       includeAssets: [
-        'branding/bross-logo.jpg',
+        'branding/product/white-short.png',
+        'branding/product/black-short.png',
         'icons/favicon-32.png',
         'icons/apple-touch-icon.png',
       ],
@@ -18,19 +19,19 @@ export default defineConfig({
       manifest: {
         id: '/',
 
-        name: 'Bross Work OS',
-        short_name: 'Bross',
+        name: 'Project Management System',
+        short_name: 'Workspace',
 
         description:
-          'Bross Solutions internal work and organization management system',
+          'Project, people, and organization management workspace',
 
         start_url: '/',
         scope: '/',
 
         display: 'standalone',
 
-        background_color: '#f4f5f6',
-        theme_color: '#202124',
+        background_color: '#f5f6f8',
+        theme_color: '#245cff',
 
         orientation: 'any',
 

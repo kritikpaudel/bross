@@ -45,7 +45,7 @@ export function InstallPrompt() {
 
         const dismissedThisSession =
             sessionStorage.getItem(
-                'bross-install-prompt-dismissed',
+                'product-install-prompt-dismissed',
             ) === 'true'
 
         if (dismissedThisSession) {
@@ -123,7 +123,7 @@ export function InstallPrompt() {
 
     function handleDismiss() {
         sessionStorage.setItem(
-            'bross-install-prompt-dismissed',
+            'product-install-prompt-dismissed',
             'true',
         )
 
@@ -137,21 +137,21 @@ export function InstallPrompt() {
     return (
         <aside
             className="install-prompt"
-            aria-label="Install Bross Work OS"
+            aria-label="Install application"
         >
             <div className="install-prompt-logo">
                 <img
-                    src="/branding/bross-logo.jpg"
+                    src="/branding/product/white-short.png"
                     alt=""
                 />
             </div>
 
             <div className="install-prompt-content">
-                <strong>Install Bross Work OS</strong>
+                <strong>Install application</strong>
 
                 {showIOSHelp ? (
                     <p>
-                        Add Bross Work OS to your Home Screen
+                        Add this application to your Home Screen
                         for faster access.
                     </p>
                 ) : (

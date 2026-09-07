@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename)
 
 const sourceLogo = path.resolve(
     __dirname,
-    '../public/branding/bross-logo.jpg',
+    '../public/branding/product/white-short.png',
 )
 
 const outputDirectory = path.resolve(
@@ -77,9 +77,9 @@ async function generateIcons() {
     })
 
     /*
-     * Maskable icons need more empty space.
-     * Android may crop the icon into a circle,
-     * squircle or rounded square.
+     * Maskable icons need a larger safe area because
+     * operating systems may crop them into circles,
+     * squircles, or rounded squares.
      */
     await createIcon({
         size: 512,
@@ -100,7 +100,7 @@ async function generateIcons() {
     })
 
     console.log('')
-    console.log('Bross Work OS icons generated successfully.')
+    console.log('Product icons generated successfully.')
     console.log('')
     console.log('Created:')
     console.log('  icon-192.png')

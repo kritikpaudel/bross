@@ -16,13 +16,13 @@ export function PlatformAdminPage({
             <header className="platform-header">
                 <div className="platform-brand">
                     <img
-                        src="/branding/bross-logo.jpg"
-                        alt="Bross Solutions"
+                        src="/branding/product/white-short.png"
+                        alt=""
                     />
 
                     <div>
                         <strong>
-                            Bross Work OS
+                            Platform Administration
                         </strong>
 
                         <span>

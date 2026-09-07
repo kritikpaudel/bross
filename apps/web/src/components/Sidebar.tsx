@@ -67,18 +67,18 @@ export function Sidebar({
         <aside className="sidebar">
             <div className="brand">
                 <img
-                    src="/branding/bross-logo.jpg"
-                    alt="Bross Solutions"
+                    src="/branding/organizations/bross/logo.jpg"
+                    alt=""
                     className="brand-logo"
                 />
 
                 <div className="brand-copy">
                     <strong>
-                        Bross Solutions
+                        Workspace
                     </strong>
 
                     <span>
-                        Work OS
+                        Project Management System
                     </span>
                 </div>
             </div>
@@ -89,9 +89,9 @@ export function Sidebar({
             >
                 <button
                     className={`nav-item ${activeView ===
-                            'my-work'
-                            ? 'active'
-                            : ''
+                        'my-work'
+                        ? 'active'
+                        : ''
                         }`}
                     type="button"
                     onClick={() =>
@@ -116,9 +116,9 @@ export function Sidebar({
 
                 <button
                     className={`nav-item ${activeView ===
-                            'projects'
-                            ? 'active'
-                            : ''
+                        'projects'
+                        ? 'active'
+                        : ''
                         }`}
                     type="button"
                     onClick={() =>
@@ -143,9 +143,9 @@ export function Sidebar({
 
                 <button
                     className={`nav-item ${activeView ===
-                            'people-structure'
-                            ? 'active'
-                            : ''
+                        'people-structure'
+                        ? 'active'
+                        : ''
                         }`}
                     type="button"
                     onClick={() =>

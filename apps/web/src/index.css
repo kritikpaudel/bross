@@ -8,41 +8,89 @@
     Arial,
     sans-serif;
 
-  color: #202124;
-  background: #f4f5f6;
+  color: #1d2026;
+  background: #f5f6f8;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --bg: #f4f5f6;
+  /* -----------------------------------------------------
+     PRODUCT PALETTE
+     Derived from the blue → cyan / violet logo
+  ----------------------------------------------------- */
+
+  --brand-blue: #245cff;
+  --brand-blue-hover: #184ce0;
+  --brand-blue-pressed: #123fbd;
+
+  --brand-cyan: #16bde8;
+  --brand-violet: #6c3cf2;
+
+  --brand-blue-soft: #edf2ff;
+  --brand-violet-soft: #f2efff;
+
+  /* -----------------------------------------------------
+     FOUNDATIONS
+  ----------------------------------------------------- */
+
+  --bg: #f5f6f8;
 
   --surface: #ffffff;
-  --surface-subtle: #f8f9fa;
+  --surface-subtle: #fafbfc;
+  --surface-hover: #f4f6f8;
+  --surface-selected: #edf2ff;
 
-  --sidebar: #eeeeef;
+  --sidebar: #f0f1f3;
 
-  --text: #202124;
-  --text-secondary: #6d7178;
-  --text-tertiary: #92969c;
+  --text: #1d2026;
+  --text-secondary: #666c76;
+  --text-tertiary: #9298a2;
+  --text-disabled: #b3b7bf;
 
-  --border: #e4e6e8;
-  --border-strong: #d7dadd;
+  --border: #e2e5e9;
+  --border-strong: #d4d8de;
 
-  --accent: #1c63e7;
-  --accent-hover: #1555ca;
-  --accent-soft: #edf3ff;
+  /* -----------------------------------------------------
+     INTERACTION
+  ----------------------------------------------------- */
 
-  --danger: #c73b3b;
-  --warning: #a76416;
-  --success: #287a4b;
+  --accent: var(--brand-blue);
+  --accent-hover: var(--brand-blue-hover);
+  --accent-pressed: var(--brand-blue-pressed);
+  --accent-soft: var(--brand-blue-soft);
+
+  --focus-ring: rgba(36, 92, 255, 0.28);
+
+  /* -----------------------------------------------------
+     STATUS
+  ----------------------------------------------------- */
+
+  --danger: #c83d4d;
+  --danger-soft: #fff0f2;
+
+  --warning: #a76818;
+  --warning-soft: #fff7e8;
+
+  --success: #278054;
+  --success-soft: #edf8f2;
+
+  /* -----------------------------------------------------
+     LAYOUT
+  ----------------------------------------------------- */
 
   --sidebar-width: 244px;
 
   --radius-sm: 6px;
   --radius-md: 9px;
+  --radius-lg: 12px;
+
+  /* -----------------------------------------------------
+     MOTION
+  ----------------------------------------------------- */
 
   --motion-fast: 120ms;
   --motion-normal: 190ms;
+  --motion-slow: 260ms;
 }
 
 /* -------------------------------------------------------

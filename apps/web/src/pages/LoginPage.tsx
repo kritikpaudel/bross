@@ -123,17 +123,17 @@ export function LoginPage({
             <section className="login-layout">
                 <header className="login-brand">
                     <img
-                        src="/branding/bross-logo.jpg"
-                        alt="Bross Solutions"
+                        src="/branding/product/white-short.png"
+                        alt=""
                     />
 
                     <div>
                         <strong>
-                            Bross Solutions
+                            Workspace
                         </strong>
 
                         <span>
-                            Work OS
+                            Project Management System
                         </span>
                     </div>
                 </header>
