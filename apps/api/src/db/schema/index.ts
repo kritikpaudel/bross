@@ -12,6 +12,7 @@ export * from './employee-assignments.js'
 export * from './employee-status-history.js'
 
 export * from './users.js'
+export * from './sessions.js'
 
 export * from './roles.js'
 export * from './permissions.js'

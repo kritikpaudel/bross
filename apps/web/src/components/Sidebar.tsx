@@ -1,4 +1,68 @@
-export function Sidebar() {
+import type {
+    AuthUser,
+} from '../lib/api'
+
+export type AppView =
+    | 'my-work'
+    | 'projects'
+    | 'people-structure'
+
+interface SidebarProps {
+    user: AuthUser
+    activeView: AppView
+    onNavigate:
+    (view: AppView) => void
+    onLogout: () => void
+}
+
+function getDisplayName(
+    user: AuthUser,
+) {
+    return (
+        user.employee?.name ??
+        user.email
+    )
+}
+
+function getRoleLabel(
+    user: AuthUser,
+) {
+    if (
+        user.roles.length === 0
+    ) {
+        return 'Account'
+    }
+
+    return user.roles
+        .map(
+            (role) =>
+                role.name,
+        )
+        .join(', ')
+}
+
+function getInitial(
+    user: AuthUser,
+) {
+    const displayName =
+        getDisplayName(
+            user,
+        ).trim()
+
+    return (
+        displayName
+            .charAt(0)
+            .toUpperCase() ||
+        'A'
+    )
+}
+
+export function Sidebar({
+    user,
+    activeView,
+    onNavigate,
+    onLogout,
+}: SidebarProps) {
     return (
         <aside className="sidebar">
             <div className="brand">
@@ -9,8 +73,13 @@ export function Sidebar() {
                 />
 
                 <div className="brand-copy">
-                    <strong>Bross Solutions</strong>
-                    <span>Work OS</span>
+                    <strong>
+                        Bross Solutions
+                    </strong>
+
+                    <span>
+                        Work OS
+                    </span>
                 </div>
             </div>
 
@@ -19,8 +88,17 @@ export function Sidebar() {
                 aria-label="Main navigation"
             >
                 <button
-                    className="nav-item active"
+                    className={`nav-item ${activeView ===
+                            'my-work'
+                            ? 'active'
+                            : ''
+                        }`}
                     type="button"
+                    onClick={() =>
+                        onNavigate(
+                            'my-work',
+                        )
+                    }
                 >
                     <span className="nav-icon">
                         <svg
@@ -31,12 +109,23 @@ export function Sidebar() {
                         </svg>
                     </span>
 
-                    <span>My Work</span>
+                    <span>
+                        My Work
+                    </span>
                 </button>
 
                 <button
-                    className="nav-item"
+                    className={`nav-item ${activeView ===
+                            'projects'
+                            ? 'active'
+                            : ''
+                        }`}
                     type="button"
+                    onClick={() =>
+                        onNavigate(
+                            'projects',
+                        )
+                    }
                 >
                     <span className="nav-icon">
                         <svg
@@ -47,12 +136,23 @@ export function Sidebar() {
                         </svg>
                     </span>
 
-                    <span>Projects</span>
+                    <span>
+                        Projects
+                    </span>
                 </button>
 
                 <button
-                    className="nav-item"
+                    className={`nav-item ${activeView ===
+                            'people-structure'
+                            ? 'active'
+                            : ''
+                        }`}
                     type="button"
+                    onClick={() =>
+                        onNavigate(
+                            'people-structure',
+                        )
+                    }
                 >
                     <span className="nav-icon">
                         <svg
@@ -63,61 +163,51 @@ export function Sidebar() {
                         </svg>
                     </span>
 
-                    <span>People</span>
+                    <span>
+                        People
+                    </span>
                 </button>
             </nav>
 
             <div className="sidebar-footer">
-                <button
-                    className="profile-placeholder"
-                    type="button"
-                    aria-label="Open account"
-                >
-                    <span className="avatar account-avatar">
+                <div className="profile-authenticated">
+                    <div className="avatar account-initial">
+                        {getInitial(
+                            user,
+                        )}
+                    </div>
+
+                    <div className="profile-placeholder-copy">
+                        <strong>
+                            {getDisplayName(
+                                user,
+                            )}
+                        </strong>
+
+                        <span>
+                            {getRoleLabel(
+                                user,
+                            )}
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="profile-logout"
+                        onClick={
+                            onLogout
+                        }
+                        aria-label="Sign out"
+                        title="Sign out"
+                    >
                         <svg
                             viewBox="0 0 24 24"
                             aria-hidden="true"
                         >
-                            <circle
-                                cx="12"
-                                cy="8"
-                                r="3.5"
-                            />
-
-                            <path d="M5 19a7 7 0 0 1 14 0" />
+                            <path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10M14 8l4 4-4 4M9 12h9" />
                         </svg>
-                    </span>
-
-                    <span className="profile-placeholder-copy">
-                        <strong>Account</strong>
-                        <span>Not signed in</span>
-                    </span>
-
-                    <span
-                        className="profile-more"
-                        aria-hidden="true"
-                    >
-                        <svg viewBox="0 0 24 24">
-                            <circle
-                                cx="5"
-                                cy="12"
-                                r="1.4"
-                            />
-
-                            <circle
-                                cx="12"
-                                cy="12"
-                                r="1.4"
-                            />
-
-                            <circle
-                                cx="19"
-                                cy="12"
-                                r="1.4"
-                            />
-                        </svg>
-                    </span>
-                </button>
+                    </button>
+                </div>
             </div>
         </aside>
     )
