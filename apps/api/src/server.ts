@@ -3,10 +3,6 @@ import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 
 import {
-    hierarchyLevelRoutes,
-} from './routes/hierarchy-levels.js'
-
-import {
     authRoutes,
 } from './routes/auth.js'
 
@@ -17,6 +13,10 @@ import {
 import {
     healthRoutes,
 } from './routes/health.js'
+
+import {
+    hierarchyLevelRoutes,
+} from './routes/hierarchy-levels.js'
 
 import {
     setupRoutes,
@@ -36,10 +36,6 @@ app.decorateRequest(
     null,
 )
 
-/*
- * Only these frontend origins may communicate
- * with authenticated browser endpoints.
- */
 const allowedOrigins =
     getAllowedOrigins()
 
@@ -71,13 +67,6 @@ await app.register(
     cookie,
 )
 
-/*
- * CORS controls which frontend JavaScript may
- * read responses.
- *
- * This guard separately protects mutations
- * against cross-site request forgery.
- */
 app.addHook(
     'onRequest',
     createTrustedOriginGuard(
@@ -124,7 +113,10 @@ const host =
     '0.0.0.0'
 
 const port =
-    3000
+    Number(
+        process.env.PORT ??
+        3000,
+    )
 
 async function start() {
     try {
@@ -134,7 +126,7 @@ async function start() {
         })
 
         console.log(
-            `Bross Work OS API running at http://localhost:${port}`,
+            `Bross Work OS API running on port ${port}`,
         )
     } catch (error) {
         app.log.error(
