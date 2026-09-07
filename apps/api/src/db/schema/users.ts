@@ -24,6 +24,7 @@ export const userAccountStatusEnum = pgEnum(
         'active',
         'disabled',
         'locked',
+        'archived',
     ],
 )
 
@@ -97,6 +98,13 @@ export const users = pgTable(
             .default('pending')
             .notNull(),
 
+        archivedAt: timestamp(
+            'archived_at',
+            {
+                withTimezone: true,
+            },
+        ),
+
         lastLoginAt: timestamp('last_login_at', {
             withTimezone: true,
         }),
@@ -123,9 +131,8 @@ export const users = pgTable(
 
     (table) => [
         uniqueIndex(
-            'users_org_email_unique',
+            'users_email_unique',
         ).on(
-            table.organizationId,
             table.normalizedEmail,
         ),
 

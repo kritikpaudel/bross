@@ -249,6 +249,13 @@ export type OrganizationStatus =
     | 'suspended'
     | 'archived'
 
+export type UserAccountStatus =
+    | 'pending'
+    | 'active'
+    | 'disabled'
+    | 'locked'
+    | 'archived'
+
 export interface PlatformOrganization {
     id: string
     name: string
@@ -274,10 +281,10 @@ export interface PlatformOrganizationUser {
     email: string
 
     accountStatus:
-    | 'pending'
-    | 'active'
-    | 'disabled'
-    | 'locked'
+    UserAccountStatus
+
+    archivedAt:
+    string | null
 
     employeeId:
     string | null
@@ -288,10 +295,22 @@ export interface PlatformOrganizationUser {
     lastLoginAt:
     string | null
 
+    passwordChangedAt:
+    string | null
+
     createdAt:
     string
 
-    updatedAt?:
+    updatedAt:
+    string
+}
+
+export interface PlatformUserAccount
+    extends PlatformOrganizationUser {
+    organizationId:
+    string
+
+    organizationName:
     string
 }
 
@@ -299,6 +318,7 @@ export interface CreatePlatformOrganizationPayload {
     name: string
     slug: string
     timezone: string
+
     logoUrl?:
     string | null
 }
@@ -307,7 +327,25 @@ export interface UpdatePlatformOrganizationPayload {
     name?: string
     slug?: string
     timezone?: string
+
     logoUrl?:
+    string | null
+}
+
+export interface CreatePlatformOrganizationUserPayload {
+    email: string
+
+    employeeId?:
+    string | null
+
+    password?:
+    string
+}
+
+export interface UpdatePlatformOrganizationUserPayload {
+    email?: string
+
+    employeeId?:
     string | null
 }
 
@@ -416,6 +454,10 @@ export async function archivePlatformOrganization(
     )
 }
 
+/* -------------------------------------------------------
+   ORGANIZATION USER MANAGEMENT
+------------------------------------------------------- */
+
 export async function getPlatformOrganizationUsers(
     organizationId: string,
 ) {
@@ -430,6 +472,63 @@ export async function getPlatformOrganizationUsers(
     )
 }
 
+export async function getPlatformUser(
+    userId: string,
+) {
+    return apiRequest<{
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/users/${userId}`,
+    )
+}
+
+export async function createPlatformOrganizationUser(
+    organizationId: string,
+    payload:
+        CreatePlatformOrganizationUserPayload,
+) {
+    return apiRequest<{
+        message: string
+
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/organizations/${organizationId}/users`,
+        {
+            method: 'POST',
+
+            body:
+                JSON.stringify(
+                    payload,
+                ),
+        },
+    )
+}
+
+export async function updatePlatformUser(
+    userId: string,
+    payload:
+        UpdatePlatformOrganizationUserPayload,
+) {
+    return apiRequest<{
+        message: string
+
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/users/${userId}`,
+        {
+            method: 'PATCH',
+
+            body:
+                JSON.stringify(
+                    payload,
+                ),
+        },
+    )
+}
+
 export async function updatePlatformUserStatus(
     userId: string,
     status:
@@ -439,16 +538,8 @@ export async function updatePlatformUserStatus(
     return apiRequest<{
         message: string
 
-        user: {
-            id: string
-            email: string
-
-            accountStatus:
-            | 'pending'
-            | 'active'
-            | 'disabled'
-            | 'locked'
-        }
+        user:
+        PlatformUserAccount
     }>(
         `/platform/users/${userId}/status`,
         {
@@ -457,6 +548,60 @@ export async function updatePlatformUserStatus(
             body:
                 JSON.stringify({
                     status,
+                }),
+        },
+    )
+}
+
+export async function archivePlatformUser(
+    userId: string,
+) {
+    return apiRequest<{
+        message: string
+
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/users/${userId}`,
+        {
+            method: 'DELETE',
+        },
+    )
+}
+
+export async function restorePlatformUser(
+    userId: string,
+) {
+    return apiRequest<{
+        message: string
+
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/users/${userId}/restore`,
+        {
+            method: 'POST',
+        },
+    )
+}
+
+export async function setPlatformUserPassword(
+    userId: string,
+    password: string,
+) {
+    return apiRequest<{
+        message: string
+
+        user:
+        PlatformUserAccount
+    }>(
+        `/platform/users/${userId}/password`,
+        {
+            method: 'POST',
+
+            body:
+                JSON.stringify({
+                    password,
                 }),
         },
     )

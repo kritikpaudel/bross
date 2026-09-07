@@ -13,11 +13,16 @@ import {
 
 import {
     archivePlatformOrganization,
+    archivePlatformUser,
     createPlatformOrganization,
+    createPlatformOrganizationUser,
     getPlatformOrganizations,
     getPlatformOrganizationUsers,
+    restorePlatformUser,
+    setPlatformUserPassword,
     updatePlatformOrganization,
     updatePlatformOrganizationStatus,
+    updatePlatformUser,
     updatePlatformUserStatus,
 } from '../lib/api'
 
@@ -36,11 +41,22 @@ type OrganizationFormMode =
     | 'create'
     | 'edit'
 
+type UserDialogMode =
+    | 'create'
+    | 'edit'
+    | 'password'
+
 interface OrganizationFormState {
     name: string
     slug: string
     timezone: string
     logoUrl: string
+}
+
+interface UserFormState {
+    email: string
+    employeeId: string
+    password: string
 }
 
 type ConfirmAction =
@@ -73,6 +89,20 @@ type ConfirmAction =
         | 'active'
         | 'disabled'
     }
+    | {
+        type:
+        'archive-user'
+
+        account:
+        PlatformOrganizationUser
+    }
+    | {
+        type:
+        'restore-user'
+
+        account:
+        PlatformOrganizationUser
+    }
 
 function getDefaultTimezone() {
     return (
@@ -91,6 +121,15 @@ function createEmptyOrganizationForm():
         timezone:
             getDefaultTimezone(),
         logoUrl: '',
+    }
+}
+
+function createEmptyUserForm():
+    UserFormState {
+    return {
+        email: '',
+        employeeId: '',
+        password: '',
     }
 }
 
@@ -196,6 +235,44 @@ function getConfirmationContent(
     }
 
     if (
+        action.type ===
+        'archive-user'
+    ) {
+        return {
+            title:
+                'Delete user account?',
+
+            message:
+                `${action.account.email} will lose access immediately. The login account will be archived while employee and historical records remain preserved.`,
+
+            confirmLabel:
+                'Delete account',
+
+            tone:
+                'danger' as const,
+        }
+    }
+
+    if (
+        action.type ===
+        'restore-user'
+    ) {
+        return {
+            title:
+                'Restore user account?',
+
+            message:
+                `${action.account.email} will be restored with access disabled. You can enable access separately after reviewing the account.`,
+
+            confirmLabel:
+                'Restore account',
+
+            tone:
+                'default' as const,
+        }
+    }
+
+    if (
         action.status ===
         'disabled'
     ) {
@@ -211,6 +288,25 @@ function getConfirmationContent(
 
             tone:
                 'danger' as const,
+        }
+    }
+
+    if (
+        action.account.accountStatus ===
+        'locked'
+    ) {
+        return {
+            title:
+                'Unlock account?',
+
+            message:
+                `${action.account.email} will be unlocked and allowed to sign in again.`,
+
+            confirmLabel:
+                'Unlock account',
+
+            tone:
+                'default' as const,
         }
     }
 
@@ -272,6 +368,11 @@ export function PlatformAdminPage({
     >(null)
 
     const [
+        userActionLoading,
+        setUserActionLoading,
+    ] = useState(false)
+
+    const [
         organizationActionLoading,
         setOrganizationActionLoading,
     ] = useState(false)
@@ -290,6 +391,29 @@ export function PlatformAdminPage({
         OrganizationFormState
     >(
         createEmptyOrganizationForm(),
+    )
+
+    const [
+        userDialogMode,
+        setUserDialogMode,
+    ] = useState<
+        UserDialogMode | null
+    >(null)
+
+    const [
+        userDialogAccount,
+        setUserDialogAccount,
+    ] = useState<
+        PlatformOrganizationUser | null
+    >(null)
+
+    const [
+        userForm,
+        setUserForm,
+    ] = useState<
+        UserFormState
+    >(
+        createEmptyUserForm(),
     )
 
     const [
@@ -630,30 +754,356 @@ export function PlatformAdminPage({
         })
     }
 
+    function resetUserDialog() {
+        setUserDialogMode(null)
+        setUserDialogAccount(null)
+
+        setUserForm(
+            createEmptyUserForm(),
+        )
+    }
+
+    function closeUserDialog() {
+        if (userActionLoading) {
+            return
+        }
+
+        resetUserDialog()
+    }
+
+    function openCreateUser() {
+        if (
+            !selectedOrganization ||
+            selectedOrganization.status ===
+            'archived'
+        ) {
+            return
+        }
+
+        clearMessages()
+        setUserDialogAccount(null)
+
+        setUserForm(
+            createEmptyUserForm(),
+        )
+
+        setUserDialogMode(
+            'create',
+        )
+    }
+
+    function openEditUser(
+        account:
+            PlatformOrganizationUser,
+    ) {
+        if (
+            account.accountStatus ===
+            'archived'
+        ) {
+            return
+        }
+
+        clearMessages()
+
+        setUserDialogAccount(
+            account,
+        )
+
+        setUserForm({
+            email:
+                account.email,
+
+            employeeId:
+                account.employeeId ??
+                '',
+
+            password:
+                '',
+        })
+
+        setUserDialogMode(
+            'edit',
+        )
+    }
+
+    function openPasswordUser(
+        account:
+            PlatformOrganizationUser,
+    ) {
+        if (
+            account.accountStatus ===
+            'archived'
+        ) {
+            return
+        }
+
+        clearMessages()
+
+        setUserDialogAccount(
+            account,
+        )
+
+        setUserForm({
+            email:
+                account.email,
+
+            employeeId:
+                account.employeeId ??
+                '',
+
+            password:
+                '',
+        })
+
+        setUserDialogMode(
+            'password',
+        )
+    }
+
+    async function handleUserSubmit(
+        event: SyntheticEvent<
+            HTMLFormElement,
+            SubmitEvent
+        >,
+    ) {
+        event.preventDefault()
+
+        if (
+            userActionLoading ||
+            !userDialogMode
+        ) {
+            return
+        }
+
+        setUserActionLoading(
+            true,
+        )
+
+        clearMessages()
+
+        try {
+            if (
+                userDialogMode ===
+                'create'
+            ) {
+                if (!selectedOrganization) {
+                    throw new Error(
+                        'Select an organization first.',
+                    )
+                }
+
+                const email =
+                    userForm.email.trim()
+
+                const employeeId =
+                    userForm.employeeId.trim()
+
+                const password =
+                    userForm.password
+
+                if (!email) {
+                    throw new Error(
+                        'Email is required.',
+                    )
+                }
+
+                const result =
+                    await createPlatformOrganizationUser(
+                        selectedOrganization.id,
+                        {
+                            email,
+
+                            employeeId:
+                                employeeId ||
+                                null,
+
+                            ...(password
+                                ? {
+                                    password,
+                                }
+                                : {}),
+                        },
+                    )
+
+                resetUserDialog()
+
+                showSuccess(
+                    result.message,
+                )
+
+                await loadOrganizationUsers(
+                    selectedOrganization.id,
+                )
+
+                return
+            }
+
+            if (!userDialogAccount) {
+                throw new Error(
+                    'User account is unavailable.',
+                )
+            }
+
+            if (
+                userDialogMode ===
+                'edit'
+            ) {
+                const email =
+                    userForm.email.trim()
+
+                const employeeId =
+                    userForm.employeeId.trim()
+
+                if (!email) {
+                    throw new Error(
+                        'Email is required.',
+                    )
+                }
+
+                const result =
+                    await updatePlatformUser(
+                        userDialogAccount.id,
+                        {
+                            email,
+
+                            employeeId:
+                                employeeId ||
+                                null,
+                        },
+                    )
+
+                resetUserDialog()
+
+                showSuccess(
+                    result.message,
+                )
+
+                if (
+                    selectedOrganization
+                ) {
+                    await loadOrganizationUsers(
+                        selectedOrganization.id,
+                    )
+                }
+
+                return
+            }
+
+            const password =
+                userForm.password
+
+            if (!password) {
+                throw new Error(
+                    'Password is required.',
+                )
+            }
+
+            const result =
+                await setPlatformUserPassword(
+                    userDialogAccount.id,
+                    password,
+                )
+
+            resetUserDialog()
+
+            showSuccess(
+                result.message,
+            )
+
+            if (
+                selectedOrganization
+            ) {
+                await loadOrganizationUsers(
+                    selectedOrganization.id,
+                )
+            }
+        } catch (submitError) {
+            showError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : 'Unable to save user account.',
+            )
+        } finally {
+            setUserActionLoading(
+                false,
+            )
+        }
+    }
+
     function handleAccountStatusChange(
         account:
             PlatformOrganizationUser,
     ) {
         if (
-            account.accountStatus !==
-            'active' &&
-            account.accountStatus !==
-            'disabled'
+            account.accountStatus ===
+            'active'
+        ) {
+            setConfirmAction({
+                type:
+                    'user-status',
+
+                account,
+
+                status:
+                    'disabled',
+            })
+
+            return
+        }
+
+        if (
+            account.accountStatus ===
+            'disabled' ||
+            account.accountStatus ===
+            'locked'
+        ) {
+            setConfirmAction({
+                type:
+                    'user-status',
+
+                account,
+
+                status:
+                    'active',
+            })
+        }
+    }
+
+    function handleArchiveUser(
+        account:
+            PlatformOrganizationUser,
+    ) {
+        if (
+            account.accountStatus ===
+            'archived'
         ) {
             return
         }
 
         setConfirmAction({
             type:
-                'user-status',
+                'archive-user',
 
             account,
+        })
+    }
 
-            status:
-                account.accountStatus ===
-                    'active'
-                    ? 'disabled'
-                    : 'active',
+    function handleRestoreUser(
+        account:
+            PlatformOrganizationUser,
+    ) {
+        if (
+            account.accountStatus !==
+            'archived'
+        ) {
+            return
+        }
+
+        setConfirmAction({
+            type:
+                'restore-user',
+
+            account,
         })
     }
 
@@ -747,42 +1197,63 @@ export function PlatformAdminPage({
             return
         }
 
+        const action =
+            confirmAction
+
         setChangingUserId(
-            confirmAction.account.id,
+            action.account.id,
         )
 
         clearMessages()
 
         try {
-            const result =
-                await updatePlatformUserStatus(
-                    confirmAction.account.id,
-                    confirmAction.status,
-                )
+            let message:
+                string
 
-            setOrganizationUsers(
-                (
-                    currentUsers,
-                ) =>
-                    currentUsers.map(
-                        (
-                            currentUser,
-                        ) =>
-                            currentUser.id ===
-                                confirmAction.account.id
-                                ? {
-                                    ...currentUser,
+            if (
+                action.type ===
+                'user-status'
+            ) {
+                const result =
+                    await updatePlatformUserStatus(
+                        action.account.id,
+                        action.status,
+                    )
 
-                                    accountStatus:
-                                        confirmAction.status,
-                                }
-                                : currentUser,
-                    ),
-            )
+                message =
+                    result.message
+            } else if (
+                action.type ===
+                'archive-user'
+            ) {
+                const result =
+                    await archivePlatformUser(
+                        action.account.id,
+                    )
+
+                message =
+                    result.message
+            } else {
+                const result =
+                    await restorePlatformUser(
+                        action.account.id,
+                    )
+
+                message =
+                    result.message
+            }
 
             showSuccess(
-                result.message,
+                message,
             )
+
+            if (
+                selectedOrganization
+            ) {
+                await loadOrganizationUsers(
+                    selectedOrganization.id,
+                )
+            }
         } catch (actionError) {
             showError(
                 actionError instanceof Error
@@ -805,6 +1276,9 @@ export function PlatformAdminPage({
     }, [])
 
     useEffect(() => {
+        setUserDialogMode(null)
+        setUserDialogAccount(null)
+
         if (
             !selectedOrganization
         ) {
@@ -979,8 +1453,8 @@ export function PlatformAdminPage({
                                                 }
                                                 type="button"
                                                 className={`platform-organization-item ${isSelected
-                                                        ? 'active'
-                                                        : ''
+                                                    ? 'active'
+                                                    : ''
                                                     }`}
                                                 onClick={() => {
                                                     clearMessages()
@@ -1143,18 +1617,34 @@ export function PlatformAdminPage({
                                         </span>
                                     </div>
 
-                                    {!usersLoading && (
-                                        <span>
-                                            {
-                                                organizationUsers.length
-                                            }{' '}
-                                            account
-                                            {organizationUsers.length ===
-                                                1
-                                                ? ''
-                                                : 's'}
-                                        </span>
-                                    )}
+                                    <div className="platform-organization-actions">
+                                        {!usersLoading && (
+                                            <span>
+                                                {
+                                                    organizationUsers.length
+                                                }{' '}
+                                                account
+                                                {organizationUsers.length ===
+                                                    1
+                                                    ? ''
+                                                    : 's'}
+                                            </span>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            className="platform-primary-action"
+                                            onClick={
+                                                openCreateUser
+                                            }
+                                            disabled={
+                                                selectedOrganization.status ===
+                                                'archived'
+                                            }
+                                        >
+                                            Create account
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {usersLoading ? (
@@ -1174,15 +1664,13 @@ export function PlatformAdminPage({
                                             (
                                                 account,
                                             ) => {
-                                                const canToggle =
-                                                    account.accountStatus ===
-                                                    'active' ||
-                                                    account.accountStatus ===
-                                                    'disabled'
-
                                                 const isChanging =
                                                     changingUserId ===
                                                     account.id
+
+                                                const isArchived =
+                                                    account.accountStatus ===
+                                                    'archived'
 
                                                 return (
                                                     <article
@@ -1235,35 +1723,143 @@ export function PlatformAdminPage({
                                                             }
                                                         </span>
 
-                                                        <button
-                                                            type="button"
-                                                            className="platform-user-action"
-                                                            disabled={
-                                                                !canToggle ||
-                                                                isChanging
-                                                            }
-                                                            onClick={() =>
-                                                                handleAccountStatusChange(
-                                                                    account,
-                                                                )
-                                                            }
-                                                        >
-                                                            {isChanging
-                                                                ? 'Saving…'
-                                                                : account.accountStatus ===
-                                                                    'active'
-                                                                    ? 'Disable access'
-                                                                    : account.accountStatus ===
-                                                                        'disabled'
-                                                                        ? 'Enable access'
-                                                                        : 'Unavailable'}
-                                                        </button>
+                                                        <div className="platform-organization-actions">
+                                                            {isArchived ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="platform-user-action"
+                                                                    disabled={
+                                                                        isChanging
+                                                                    }
+                                                                    onClick={() =>
+                                                                        handleRestoreUser(
+                                                                            account,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {isChanging
+                                                                        ? 'Restoring…'
+                                                                        : 'Restore'}
+                                                                </button>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="platform-user-action"
+                                                                        disabled={
+                                                                            isChanging
+                                                                        }
+                                                                        onClick={() =>
+                                                                            openEditUser(
+                                                                                account,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className="platform-user-action"
+                                                                        disabled={
+                                                                            isChanging
+                                                                        }
+                                                                        onClick={() =>
+                                                                            openPasswordUser(
+                                                                                account,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        {account.accountStatus ===
+                                                                            'pending'
+                                                                            ? 'Set password'
+                                                                            : 'Reset password'}
+                                                                    </button>
+
+                                                                    {account.accountStatus ===
+                                                                        'active' && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="platform-user-action"
+                                                                                disabled={
+                                                                                    isChanging
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleAccountStatusChange(
+                                                                                        account,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                {isChanging
+                                                                                    ? 'Saving…'
+                                                                                    : 'Disable'}
+                                                                            </button>
+                                                                        )}
+
+                                                                    {account.accountStatus ===
+                                                                        'disabled' && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="platform-user-action"
+                                                                                disabled={
+                                                                                    isChanging
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleAccountStatusChange(
+                                                                                        account,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                {isChanging
+                                                                                    ? 'Saving…'
+                                                                                    : 'Enable'}
+                                                                            </button>
+                                                                        )}
+
+                                                                    {account.accountStatus ===
+                                                                        'locked' && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="platform-user-action"
+                                                                                disabled={
+                                                                                    isChanging
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleAccountStatusChange(
+                                                                                        account,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                {isChanging
+                                                                                    ? 'Saving…'
+                                                                                    : 'Unlock'}
+                                                                            </button>
+                                                                        )}
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className="platform-user-action platform-danger-action"
+                                                                        disabled={
+                                                                            isChanging
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleArchiveUser(
+                                                                                account,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </article>
                                                 )
                                             },
                                         )}
                                     </div>
                                 )}
+
                             </>
                         )}
                     </section>
@@ -1451,6 +2047,237 @@ export function PlatformAdminPage({
                                             'create'
                                             ? 'Create organization'
                                             : 'Save changes'}
+                                </button>
+                            </footer>
+                        </form>
+                    </section>
+                </div>
+            )}
+
+            {userDialogMode && (
+                <div
+                    className="platform-dialog-backdrop"
+                    role="presentation"
+                >
+                    <section
+                        className="platform-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="user-dialog-title"
+                    >
+                        <header className="platform-dialog-header">
+                            <div>
+                                <p>
+                                    User account
+                                </p>
+
+                                <h2
+                                    id="user-dialog-title"
+                                >
+                                    {userDialogMode ===
+                                        'create'
+                                        ? 'Create account'
+                                        : userDialogMode ===
+                                            'edit'
+                                            ? 'Edit account'
+                                            : userDialogAccount?.accountStatus ===
+                                                'pending'
+                                                ? 'Set password'
+                                                : 'Reset password'}
+                                </h2>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label="Close"
+                                onClick={
+                                    closeUserDialog
+                                }
+                            >
+                                ×
+                            </button>
+                        </header>
+
+                        <form
+                            className="platform-dialog-form"
+                            onSubmit={
+                                handleUserSubmit
+                            }
+                        >
+                            {userDialogMode !==
+                                'password' && (
+                                    <>
+                                        <label>
+                                            <span>
+                                                Email
+                                            </span>
+
+                                            <input
+                                                type="email"
+                                                value={
+                                                    userForm.email
+                                                }
+                                                onChange={(event) =>
+                                                    setUserForm(
+                                                        (
+                                                            current,
+                                                        ) => ({
+                                                            ...current,
+
+                                                            email:
+                                                                event.target.value,
+                                                        }),
+                                                    )
+                                                }
+                                                required
+                                                maxLength={254}
+                                                autoFocus
+                                            />
+                                        </label>
+
+                                        <label>
+                                            <span>
+                                                Employee ID
+                                                {' '}
+                                                (optional)
+                                            </span>
+
+                                            <input
+                                                type="text"
+                                                value={
+                                                    userForm.employeeId
+                                                }
+                                                onChange={(event) =>
+                                                    setUserForm(
+                                                        (
+                                                            current,
+                                                        ) => ({
+                                                            ...current,
+
+                                                            employeeId:
+                                                                event.target.value,
+                                                        }),
+                                                    )
+                                                }
+                                                maxLength={36}
+                                                placeholder="Employee UUID"
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
+                            {userDialogMode ===
+                                'create' && (
+                                    <label>
+                                        <span>
+                                            Initial password
+                                            {' '}
+                                            (optional)
+                                        </span>
+
+                                        <input
+                                            type="password"
+                                            value={
+                                                userForm.password
+                                            }
+                                            onChange={(event) =>
+                                                setUserForm(
+                                                    (
+                                                        current,
+                                                    ) => ({
+                                                        ...current,
+
+                                                        password:
+                                                            event.target.value,
+                                                    }),
+                                                )
+                                            }
+                                            minLength={8}
+                                            maxLength={128}
+                                            autoComplete="new-password"
+                                        />
+
+                                        <small>
+                                            Leave blank to
+                                            create a pending
+                                            account and set
+                                            the password
+                                            later.
+                                        </small>
+                                    </label>
+                                )}
+
+                            {userDialogMode ===
+                                'password' && (
+                                    <>
+                                        <div className="platform-panel-state">
+                                            {userDialogAccount?.email}
+                                        </div>
+
+                                        <label>
+                                            <span>
+                                                New password
+                                            </span>
+
+                                            <input
+                                                type="password"
+                                                value={
+                                                    userForm.password
+                                                }
+                                                onChange={(event) =>
+                                                    setUserForm(
+                                                        (
+                                                            current,
+                                                        ) => ({
+                                                            ...current,
+
+                                                            password:
+                                                                event.target.value,
+                                                        }),
+                                                    )
+                                                }
+                                                required
+                                                minLength={8}
+                                                maxLength={128}
+                                                autoComplete="new-password"
+                                                autoFocus
+                                            />
+                                        </label>
+                                    </>
+                                )}
+
+                            <footer className="platform-dialog-actions">
+                                <button
+                                    type="button"
+                                    onClick={
+                                        closeUserDialog
+                                    }
+                                    disabled={
+                                        userActionLoading
+                                    }
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="platform-primary-action"
+                                    disabled={
+                                        userActionLoading
+                                    }
+                                >
+                                    {userActionLoading
+                                        ? 'Saving…'
+                                        : userDialogMode ===
+                                            'create'
+                                            ? 'Create account'
+                                            : userDialogMode ===
+                                                'edit'
+                                                ? 'Save changes'
+                                                : userDialogAccount?.accountStatus ===
+                                                    'pending'
+                                                    ? 'Set password'
+                                                    : 'Reset password'}
                                 </button>
                             </footer>
                         </form>

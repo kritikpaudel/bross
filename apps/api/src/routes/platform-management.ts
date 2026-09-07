@@ -33,6 +33,10 @@ import {
     PLATFORM_SESSION_COOKIE_NAME,
 } from '../security/platform-session.js'
 
+import {
+    hashPassword,
+} from '../security/password.js'
+
 /* -------------------------------------------------------
    AUTHENTICATION
 ------------------------------------------------------- */
@@ -195,6 +199,66 @@ const organizationStatusSchema =
             ]),
     })
 
+const createUserSchema =
+    z.object({
+        email:
+            z.string()
+                .trim()
+                .email(
+                    'Enter a valid email address.',
+                )
+                .max(254),
+
+        employeeId:
+            z.string()
+                .uuid(
+                    'Invalid employee.',
+                )
+                .nullable()
+                .optional(),
+
+        password:
+            z.string()
+                .min(
+                    8,
+                    'Password must be at least 8 characters.',
+                )
+                .max(
+                    128,
+                    'Password is too long.',
+                )
+                .optional(),
+    })
+
+const updateUserSchema =
+    z.object({
+        email:
+            z.string()
+                .trim()
+                .email(
+                    'Enter a valid email address.',
+                )
+                .max(254)
+                .optional(),
+
+        employeeId:
+            z.string()
+                .uuid(
+                    'Invalid employee.',
+                )
+                .nullable()
+                .optional(),
+    })
+        .refine(
+            (value) =>
+                Object.keys(value).length >
+                0,
+            {
+                message:
+                    'No account changes were provided.',
+            },
+        )
+
 const updateUserStatusSchema =
     z.object({
         status:
@@ -202,6 +266,20 @@ const updateUserStatusSchema =
                 'active',
                 'disabled',
             ]),
+    })
+
+const updateUserPasswordSchema =
+    z.object({
+        password:
+            z.string()
+                .min(
+                    8,
+                    'Password must be at least 8 characters.',
+                )
+                .max(
+                    128,
+                    'Password is too long.',
+                ),
     })
 
 function isValidTimezone(
@@ -220,6 +298,14 @@ function isValidTimezone(
     } catch {
         return false
     }
+}
+
+function normalizeEmail(
+    email: string,
+) {
+    return email
+        .trim()
+        .toLowerCase()
 }
 
 /* -------------------------------------------------------
@@ -278,6 +364,149 @@ async function findOrganization(
     )
 }
 
+async function findUserAccount(
+    userId: string,
+) {
+    const [
+        account,
+    ] =
+        await db
+            .select({
+                id:
+                    users.id,
+
+                organizationId:
+                    users.organizationId,
+
+                organizationName:
+                    organizations.name,
+
+                employeeId:
+                    users.employeeId,
+
+                employeeName:
+                    employees.fullName,
+
+                email:
+                    users.email,
+
+                accountStatus:
+                    users.accountStatus,
+
+                archivedAt:
+                    users.archivedAt,
+
+                lastLoginAt:
+                    users.lastLoginAt,
+
+                passwordChangedAt:
+                    users.passwordChangedAt,
+
+                createdAt:
+                    users.createdAt,
+
+                updatedAt:
+                    users.updatedAt,
+            })
+            .from(
+                users,
+            )
+            .innerJoin(
+                organizations,
+                eq(
+                    users.organizationId,
+                    organizations.id,
+                ),
+            )
+            .leftJoin(
+                employees,
+                eq(
+                    users.employeeId,
+                    employees.id,
+                ),
+            )
+            .where(
+                eq(
+                    users.id,
+                    userId,
+                ),
+            )
+            .limit(1)
+
+    return account ?? null
+}
+
+async function findUserSecurityRecord(
+    userId: string,
+) {
+    const [
+        account,
+    ] =
+        await db
+            .select({
+                id:
+                    users.id,
+
+                organizationId:
+                    users.organizationId,
+
+                employeeId:
+                    users.employeeId,
+
+                email:
+                    users.email,
+
+                normalizedEmail:
+                    users.normalizedEmail,
+
+                passwordHash:
+                    users.passwordHash,
+
+                accountStatus:
+                    users.accountStatus,
+
+                archivedAt:
+                    users.archivedAt,
+            })
+            .from(
+                users,
+            )
+            .where(
+                eq(
+                    users.id,
+                    userId,
+                ),
+            )
+            .limit(1)
+
+    return account ?? null
+}
+
+async function revokeUserSessions(
+    userId: string,
+) {
+    await db
+        .update(
+            sessions,
+        )
+        .set({
+            revokedAt:
+                new Date(),
+        })
+        .where(
+            and(
+                eq(
+                    sessions.userId,
+                    userId,
+                ),
+
+                isNull(
+                    sessions.revokedAt,
+                ),
+            ),
+        )
+}
+
 async function revokeOrganizationSessions(
     organizationId: string,
 ) {
@@ -330,6 +559,81 @@ async function revokeOrganizationSessions(
                 ),
             ),
         )
+}
+
+async function validateEmployeeForOrganization(
+    employeeId: string,
+    organizationId: string,
+    currentUserId?: string,
+) {
+    const [
+        employee,
+    ] =
+        await db
+            .select({
+                id:
+                    employees.id,
+
+                organizationId:
+                    employees.organizationId,
+            })
+            .from(
+                employees,
+            )
+            .where(
+                eq(
+                    employees.id,
+                    employeeId,
+                ),
+            )
+            .limit(1)
+
+    if (
+        !employee ||
+        employee.organizationId !==
+        organizationId
+    ) {
+        return {
+            valid: false as const,
+            error:
+                'Employee does not belong to this organization.',
+        }
+    }
+
+    const [
+        linkedAccount,
+    ] =
+        await db
+            .select({
+                id:
+                    users.id,
+            })
+            .from(
+                users,
+            )
+            .where(
+                eq(
+                    users.employeeId,
+                    employeeId,
+                ),
+            )
+            .limit(1)
+
+    if (
+        linkedAccount &&
+        linkedAccount.id !==
+        currentUserId
+    ) {
+        return {
+            valid: false as const,
+            error:
+                'This employee already has a user account.',
+        }
+    }
+
+    return {
+        valid: true as const,
+    }
 }
 
 /* -------------------------------------------------------
@@ -913,10 +1217,6 @@ export async function platformManagementRoutes(
      * -----------------------------------------------------
      * ARCHIVE / DELETE ORGANIZATION
      * -----------------------------------------------------
-     *
-     * This is intentionally history-safe.
-     * We do not physically destroy employee, project,
-     * task, assignment, or audit history here.
      */
     app.delete(
         '/platform/organizations/:organizationId',
@@ -1082,6 +1382,9 @@ export async function platformManagementRoutes(
                         accountStatus:
                             users.accountStatus,
 
+                        archivedAt:
+                            users.archivedAt,
+
                         employeeId:
                             users.employeeId,
 
@@ -1090,6 +1393,9 @@ export async function platformManagementRoutes(
 
                         lastLoginAt:
                             users.lastLoginAt,
+
+                        passwordChangedAt:
+                            users.passwordChangedAt,
 
                         createdAt:
                             users.createdAt,
@@ -1130,7 +1436,504 @@ export async function platformManagementRoutes(
 
     /*
      * -----------------------------------------------------
-     * ENABLE / DISABLE ORGANIZATION USER
+     * GET ORGANIZATION USER
+     * -----------------------------------------------------
+     */
+    app.get(
+        '/platform/users/:userId',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                userParamsSchema.safeParse(
+                    request.params,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid user account.',
+                    })
+            }
+
+            const account =
+                await findUserAccount(
+                    parsedParams.data.userId,
+                )
+
+            if (!account) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'User account not found.',
+                    })
+            }
+
+            return reply.send({
+                user:
+                    account,
+            })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * CREATE ORGANIZATION USER
+     * -----------------------------------------------------
+     */
+    app.post(
+        '/platform/organizations/:organizationId/users',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                organizationParamsSchema.safeParse(
+                    request.params,
+                )
+
+            const parsedBody =
+                createUserSchema.safeParse(
+                    request.body,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid organization.',
+                    })
+            }
+
+            if (!parsedBody.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            parsedBody.error
+                                .issues[0]
+                                ?.message ??
+                            'Invalid user account information.',
+                    })
+            }
+
+            const organization =
+                await findOrganization(
+                    parsedParams
+                        .data
+                        .organizationId,
+                )
+
+            if (!organization) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'Organization not found.',
+                    })
+            }
+
+            if (
+                organization.status ===
+                'archived'
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'Restore the organization before creating user accounts.',
+                    })
+            }
+
+            const email =
+                parsedBody.data.email.trim()
+
+            const normalizedEmail =
+                normalizeEmail(
+                    email,
+                )
+
+            const [
+                duplicateEmail,
+            ] =
+                await db
+                    .select({
+                        id:
+                            users.id,
+
+                        accountStatus:
+                            users.accountStatus,
+                    })
+                    .from(
+                        users,
+                    )
+                    .where(
+                        eq(
+                            users.normalizedEmail,
+                            normalizedEmail,
+                        ),
+                    )
+                    .limit(1)
+
+            if (duplicateEmail) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            duplicateEmail.accountStatus ===
+                                'archived'
+                                ? 'An archived account with this email already exists. Restore or edit that account instead.'
+                                : 'A user account with this email already exists.',
+                    })
+            }
+
+            if (
+                parsedBody.data.employeeId
+            ) {
+                const employeeValidation =
+                    await validateEmployeeForOrganization(
+                        parsedBody.data.employeeId,
+                        organization.id,
+                    )
+
+                if (
+                    !employeeValidation.valid
+                ) {
+                    return reply
+                        .code(409)
+                        .send({
+                            error:
+                                employeeValidation.error,
+                        })
+                }
+            }
+
+            let passwordHash:
+                string | null =
+                null
+
+            let passwordChangedAt:
+                Date | null =
+                null
+
+            if (
+                parsedBody.data.password
+            ) {
+                passwordHash =
+                    await hashPassword(
+                        parsedBody.data.password,
+                    )
+
+                passwordChangedAt =
+                    new Date()
+            }
+
+            const createdUsers =
+                await db
+                    .insert(
+                        users,
+                    )
+                    .values({
+                        organizationId:
+                            organization.id,
+
+                        employeeId:
+                            parsedBody.data.employeeId ??
+                            null,
+
+                        email,
+
+                        normalizedEmail,
+
+                        passwordHash,
+
+                        accountStatus:
+                            passwordHash
+                                ? 'active'
+                                : 'pending',
+
+                        passwordChangedAt,
+                    })
+                    .returning({
+                        id:
+                            users.id,
+                    })
+
+            const createdUser =
+                createdUsers[0]
+
+            if (!createdUser) {
+                return reply
+                    .code(500)
+                    .send({
+                        error:
+                            'User account could not be created.',
+                    })
+            }
+
+            const account =
+                await findUserAccount(
+                    createdUser.id,
+                )
+
+            return reply
+                .code(201)
+                .send({
+                    message:
+                        passwordHash
+                            ? 'User account created successfully.'
+                            : 'User account created successfully. Set a password before the account can sign in.',
+
+                    user:
+                        account,
+                })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * UPDATE ORGANIZATION USER
+     * -----------------------------------------------------
+     */
+    app.patch(
+        '/platform/users/:userId',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                userParamsSchema.safeParse(
+                    request.params,
+                )
+
+            const parsedBody =
+                updateUserSchema.safeParse(
+                    request.body,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid user account.',
+                    })
+            }
+
+            if (!parsedBody.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            parsedBody.error
+                                .issues[0]
+                                ?.message ??
+                            'Invalid user account information.',
+                    })
+            }
+
+            const existingUser =
+                await findUserSecurityRecord(
+                    parsedParams.data.userId,
+                )
+
+            if (!existingUser) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'User account not found.',
+                    })
+            }
+
+            if (
+                existingUser.accountStatus ===
+                'archived'
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'Restore the account before editing it.',
+                    })
+            }
+
+            let nextEmail:
+                string | undefined
+
+            let nextNormalizedEmail:
+                string | undefined
+
+            if (
+                parsedBody.data.email !==
+                undefined
+            ) {
+                nextEmail =
+                    parsedBody.data.email.trim()
+
+                nextNormalizedEmail =
+                    normalizeEmail(
+                        nextEmail,
+                    )
+
+                if (
+                    nextNormalizedEmail !==
+                    existingUser.normalizedEmail
+                ) {
+                    const [
+                        duplicateEmail,
+                    ] =
+                        await db
+                            .select({
+                                id:
+                                    users.id,
+                            })
+                            .from(
+                                users,
+                            )
+                            .where(
+                                eq(
+                                    users.normalizedEmail,
+                                    nextNormalizedEmail,
+                                ),
+                            )
+                            .limit(1)
+
+                    if (
+                        duplicateEmail &&
+                        duplicateEmail.id !==
+                        existingUser.id
+                    ) {
+                        return reply
+                            .code(409)
+                            .send({
+                                error:
+                                    'A user account with this email already exists.',
+                            })
+                    }
+                }
+            }
+
+            if (
+                parsedBody.data.employeeId
+            ) {
+                const employeeValidation =
+                    await validateEmployeeForOrganization(
+                        parsedBody.data.employeeId,
+                        existingUser.organizationId,
+                        existingUser.id,
+                    )
+
+                if (
+                    !employeeValidation.valid
+                ) {
+                    return reply
+                        .code(409)
+                        .send({
+                            error:
+                                employeeValidation.error,
+                        })
+                }
+            }
+
+            const emailChanged =
+                nextNormalizedEmail !==
+                undefined &&
+                nextNormalizedEmail !==
+                existingUser.normalizedEmail
+
+            const employeeChanged =
+                parsedBody.data.employeeId !==
+                undefined &&
+                parsedBody.data.employeeId !==
+                existingUser.employeeId
+
+            await db
+                .update(
+                    users,
+                )
+                .set({
+                    email:
+                        nextEmail,
+
+                    normalizedEmail:
+                        nextNormalizedEmail,
+
+                    employeeId:
+                        parsedBody.data.employeeId,
+
+                    updatedAt:
+                        new Date(),
+                })
+                .where(
+                    eq(
+                        users.id,
+                        existingUser.id,
+                    ),
+                )
+
+            if (
+                emailChanged ||
+                employeeChanged
+            ) {
+                await revokeUserSessions(
+                    existingUser.id,
+                )
+            }
+
+            const updatedUser =
+                await findUserAccount(
+                    existingUser.id,
+                )
+
+            return reply.send({
+                message:
+                    'User account updated successfully.',
+
+                user:
+                    updatedUser,
+            })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * ENABLE / DISABLE / UNLOCK ORGANIZATION USER
      * -----------------------------------------------------
      */
     app.patch(
@@ -1171,27 +1974,10 @@ export async function platformManagementRoutes(
                     })
             }
 
-            const [
-                existingUser,
-            ] =
-                await db
-                    .select({
-                        id:
-                            users.id,
-
-                        accountStatus:
-                            users.accountStatus,
-                    })
-                    .from(
-                        users,
-                    )
-                    .where(
-                        eq(
-                            users.id,
-                            parsedParams.data.userId,
-                        ),
-                    )
-                    .limit(1)
+            const existingUser =
+                await findUserSecurityRecord(
+                    parsedParams.data.userId,
+                )
 
             if (!existingUser) {
                 return reply
@@ -1203,16 +1989,27 @@ export async function platformManagementRoutes(
             }
 
             if (
-                existingUser.accountStatus !==
-                'active' &&
-                existingUser.accountStatus !==
-                'disabled'
+                existingUser.accountStatus ===
+                'archived'
             ) {
                 return reply
                     .code(409)
                     .send({
                         error:
-                            'This account cannot be enabled or disabled from its current state.',
+                            'Restore the account before changing its access.',
+                    })
+            }
+
+            if (
+                parsedBody.data.status ===
+                'active' &&
+                !existingUser.passwordHash
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'Set a password before enabling this account.',
                     })
             }
 
@@ -1238,52 +2035,15 @@ export async function platformManagementRoutes(
                 parsedBody.data.status ===
                 'disabled'
             ) {
-                await db
-                    .update(
-                        sessions,
-                    )
-                    .set({
-                        revokedAt:
-                            new Date(),
-                    })
-                    .where(
-                        and(
-                            eq(
-                                sessions.userId,
-                                existingUser.id,
-                            ),
-
-                            isNull(
-                                sessions.revokedAt,
-                            ),
-                        ),
-                    )
+                await revokeUserSessions(
+                    existingUser.id,
+                )
             }
 
-            const [
-                updatedUser,
-            ] =
-                await db
-                    .select({
-                        id:
-                            users.id,
-
-                        email:
-                            users.email,
-
-                        accountStatus:
-                            users.accountStatus,
-                    })
-                    .from(
-                        users,
-                    )
-                    .where(
-                        eq(
-                            users.id,
-                            existingUser.id,
-                        ),
-                    )
-                    .limit(1)
+            const updatedUser =
+                await findUserAccount(
+                    existingUser.id,
+                )
 
             return reply.send({
                 message:
@@ -1291,6 +2051,351 @@ export async function platformManagementRoutes(
                         'active'
                         ? 'Account enabled successfully.'
                         : 'Account disabled successfully.',
+
+                user:
+                    updatedUser,
+            })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * ARCHIVE / DELETE ORGANIZATION USER
+     * -----------------------------------------------------
+     *
+     * This intentionally preserves employee and
+     * historical organization data.
+     */
+    app.delete(
+        '/platform/users/:userId',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                userParamsSchema.safeParse(
+                    request.params,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid user account.',
+                    })
+            }
+
+            const existingUser =
+                await findUserSecurityRecord(
+                    parsedParams.data.userId,
+                )
+
+            if (!existingUser) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'User account not found.',
+                    })
+            }
+
+            if (
+                existingUser.accountStatus ===
+                'archived'
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'User account is already archived.',
+                    })
+            }
+
+            const now =
+                new Date()
+
+            await db
+                .update(
+                    users,
+                )
+                .set({
+                    accountStatus:
+                        'archived',
+
+                    archivedAt:
+                        now,
+
+                    updatedAt:
+                        now,
+                })
+                .where(
+                    eq(
+                        users.id,
+                        existingUser.id,
+                    ),
+                )
+
+            await revokeUserSessions(
+                existingUser.id,
+            )
+
+            const archivedUser =
+                await findUserAccount(
+                    existingUser.id,
+                )
+
+            return reply.send({
+                message:
+                    'User account deleted successfully. Its history has been preserved.',
+
+                user:
+                    archivedUser,
+            })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * RESTORE ORGANIZATION USER
+     * -----------------------------------------------------
+     *
+     * Restored accounts return disabled.
+     * The administrator must explicitly enable
+     * access afterward.
+     */
+    app.post(
+        '/platform/users/:userId/restore',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                userParamsSchema.safeParse(
+                    request.params,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid user account.',
+                    })
+            }
+
+            const existingUser =
+                await findUserSecurityRecord(
+                    parsedParams.data.userId,
+                )
+
+            if (!existingUser) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'User account not found.',
+                    })
+            }
+
+            if (
+                existingUser.accountStatus !==
+                'archived'
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'User account is not archived.',
+                    })
+            }
+
+            await db
+                .update(
+                    users,
+                )
+                .set({
+                    accountStatus:
+                        'disabled',
+
+                    archivedAt:
+                        null,
+
+                    updatedAt:
+                        new Date(),
+                })
+                .where(
+                    eq(
+                        users.id,
+                        existingUser.id,
+                    ),
+                )
+
+            const restoredUser =
+                await findUserAccount(
+                    existingUser.id,
+                )
+
+            return reply.send({
+                message:
+                    'User account restored successfully. Access remains disabled until you enable it.',
+
+                user:
+                    restoredUser,
+            })
+        },
+    )
+
+    /*
+     * -----------------------------------------------------
+     * SET / RESET ORGANIZATION USER PASSWORD
+     * -----------------------------------------------------
+     */
+    app.post(
+        '/platform/users/:userId/password',
+        async (
+            request,
+            reply,
+        ) => {
+            const authContext =
+                await requirePlatformAdmin(
+                    request,
+                    reply,
+                )
+
+            if (!authContext) {
+                return
+            }
+
+            const parsedParams =
+                userParamsSchema.safeParse(
+                    request.params,
+                )
+
+            const parsedBody =
+                updateUserPasswordSchema.safeParse(
+                    request.body,
+                )
+
+            if (!parsedParams.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            'Invalid user account.',
+                    })
+            }
+
+            if (!parsedBody.success) {
+                return reply
+                    .code(400)
+                    .send({
+                        error:
+                            parsedBody.error
+                                .issues[0]
+                                ?.message ??
+                            'Invalid password.',
+                    })
+            }
+
+            const existingUser =
+                await findUserSecurityRecord(
+                    parsedParams.data.userId,
+                )
+
+            if (!existingUser) {
+                return reply
+                    .code(404)
+                    .send({
+                        error:
+                            'User account not found.',
+                    })
+            }
+
+            if (
+                existingUser.accountStatus ===
+                'archived'
+            ) {
+                return reply
+                    .code(409)
+                    .send({
+                        error:
+                            'Restore the account before changing its password.',
+                    })
+            }
+
+            const passwordHash =
+                await hashPassword(
+                    parsedBody.data.password,
+                )
+
+            const now =
+                new Date()
+
+            const nextStatus =
+                existingUser.accountStatus ===
+                    'pending'
+                    ? 'active'
+                    : existingUser.accountStatus
+
+            await db
+                .update(
+                    users,
+                )
+                .set({
+                    passwordHash,
+
+                    passwordChangedAt:
+                        now,
+
+                    accountStatus:
+                        nextStatus,
+
+                    updatedAt:
+                        now,
+                })
+                .where(
+                    eq(
+                        users.id,
+                        existingUser.id,
+                    ),
+                )
+
+            await revokeUserSessions(
+                existingUser.id,
+            )
+
+            const updatedUser =
+                await findUserAccount(
+                    existingUser.id,
+                )
+
+            return reply.send({
+                message:
+                    existingUser.accountStatus ===
+                        'pending'
+                        ? 'Password set successfully. The account is now active.'
+                        : 'Password reset successfully. Existing sessions have been signed out.',
 
                 user:
                     updatedUser,
