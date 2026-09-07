@@ -3168,10 +3168,669 @@ img {
 ------------------------------------------------------- */
 
 .platform-screen {
-  min-height: 100vh;
+  min-width: 0;
+  overflow-x: hidden;
+}
 
-  background: var(--bg);
-  color: var(--text);
+.platform-content,
+.platform-management,
+.platform-users,
+.platform-organizations {
+  min-width: 0;
+}
+
+/* -------------------------------------------------------
+   SECTION TOOLBARS
+------------------------------------------------------- */
+
+.platform-section-heading {
+  min-width: 0;
+}
+
+.platform-section-heading>.platform-organization-actions {
+  min-width: 0;
+
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+}
+
+.platform-section-heading>.platform-organization-actions>span {
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------
+   ORGANIZATION ACTIONS
+------------------------------------------------------- */
+
+.platform-organization-actions {
+  min-width: 0;
+
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.platform-organization-actions button {
+  flex: 0 0 auto;
+}
+
+/* -------------------------------------------------------
+   USER ROWS
+------------------------------------------------------- */
+
+.platform-user-row {
+  grid-template-columns:
+    34px minmax(150px, 1fr) minmax(110px, 0.65fr) auto minmax(250px, auto);
+
+  gap: 12px;
+}
+
+.platform-user-row>.platform-organization-actions {
+  min-width: 0;
+
+  justify-content: flex-end;
+}
+
+.platform-user-row .platform-user-action {
+  min-height: 30px;
+}
+
+/* -------------------------------------------------------
+   ARCHIVED ACCOUNT STATUS
+------------------------------------------------------- */
+
+.platform-status-archived {
+  border-color: #dedfe2;
+
+  background: #f1f2f3;
+
+  color: var(--text-tertiary);
+}
+
+/* -------------------------------------------------------
+   DIALOG HELP TEXT
+------------------------------------------------------- */
+
+.platform-dialog-form small {
+  color: var(--text-tertiary);
+
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+/* -------------------------------------------------------
+   DIALOG VIEWPORT SAFETY
+------------------------------------------------------- */
+
+.platform-dialog {
+  max-height:
+    calc(100dvh - 40px);
+
+  overscroll-behavior: contain;
+}
+
+.platform-dialog-actions {
+  position: sticky;
+
+  bottom: 0;
+
+  z-index: 2;
+}
+
+/* =======================================================
+   COMPACT DESKTOP / SMALL LAPTOP
+======================================================= */
+
+@media (max-width: 1100px) {
+  .platform-content {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .platform-management {
+    grid-template-columns:
+      240px minmax(0, 1fr);
+  }
+
+  .platform-user-row {
+    grid-template-columns:
+      32px minmax(140px, 1fr) auto minmax(220px, auto);
+  }
+
+  .platform-user-meta {
+    display: none;
+  }
+}
+
+/* =======================================================
+   TABLET
+======================================================= */
+
+@media (max-width: 900px) {
+  .platform-content {
+    padding:
+      30px 18px 56px;
+  }
+
+  .platform-management {
+    grid-template-columns:
+      220px minmax(0, 1fr);
+  }
+
+  .platform-user-row {
+    grid-template-columns:
+      32px minmax(0, 1fr) auto;
+
+    grid-template-areas:
+      "avatar identity status"
+      "avatar actions actions";
+
+    align-items: center;
+
+    row-gap: 7px;
+  }
+
+  .platform-user-avatar {
+    grid-area: avatar;
+  }
+
+  .platform-user-identity {
+    grid-area: identity;
+  }
+
+  .platform-user-meta {
+    display: none;
+  }
+
+  .platform-user-row>.platform-status {
+    grid-area: status;
+
+    justify-self: end;
+  }
+
+  .platform-user-row>.platform-organization-actions {
+    grid-area: actions;
+
+    width: 100%;
+
+    justify-content: flex-end;
+  }
+}
+
+/* =======================================================
+   MOBILE
+======================================================= */
+
+@media (max-width: 700px) {
+  .platform-header {
+    min-height: 62px;
+
+    padding:
+      10px 14px;
+  }
+
+  .platform-brand img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .platform-account {
+    gap: 8px;
+  }
+
+  .platform-account>div {
+    display: none;
+  }
+
+  .platform-account button {
+    min-height: 36px;
+  }
+
+  .platform-content {
+    width: 100%;
+
+    padding:
+      22px 12px 44px;
+  }
+
+  /* -----------------------------
+     Page heading
+  ----------------------------- */
+
+  .platform-heading-actions {
+    align-items: stretch;
+
+    flex-direction: column;
+
+    gap: 14px;
+  }
+
+  .platform-heading h1 {
+    font-size: 22px;
+  }
+
+  .platform-heading-actions>.platform-primary-action {
+    width: 100%;
+
+    min-height: 38px;
+
+    align-self: stretch;
+  }
+
+  /* -----------------------------
+     Main management container
+  ----------------------------- */
+
+  .platform-management {
+    display: block;
+
+    min-height: 0;
+
+    overflow: visible;
+  }
+
+  .platform-organizations {
+    border-right: 0;
+
+    border-bottom:
+      1px solid var(--border);
+  }
+
+  /* -----------------------------
+     Organization horizontal list
+  ----------------------------- */
+
+  .platform-organization-list {
+    display: flex;
+
+    gap: 7px;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    padding:
+      8px;
+
+    scroll-snap-type:
+      x proximity;
+
+    scrollbar-width:
+      thin;
+  }
+
+  .platform-organization-item {
+    min-width: 190px;
+    max-width: 230px;
+
+    flex:
+      0 0 auto;
+
+    scroll-snap-align:
+      start;
+  }
+
+  /* -----------------------------
+     Selected organization toolbar
+  ----------------------------- */
+
+  .platform-organization-toolbar {
+    align-items: stretch;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    padding:
+      12px;
+  }
+
+  .platform-organization-toolbar>.platform-organization-actions {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 6px;
+  }
+
+  .platform-organization-toolbar>.platform-organization-actions button {
+    width: 100%;
+
+    min-height: 36px;
+
+    padding:
+      0 8px;
+  }
+
+  /* -----------------------------
+     Account heading
+  ----------------------------- */
+
+  .platform-section-heading {
+    min-height: 0;
+
+    align-items: flex-start;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    padding:
+      12px;
+  }
+
+  .platform-section-heading>.platform-organization-actions {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    flex-direction: row;
+  }
+
+  .platform-section-heading .platform-primary-action {
+    min-height: 36px;
+  }
+
+  /* -----------------------------
+     Account cards
+  ----------------------------- */
+
+  .platform-user-row {
+    grid-template-columns:
+      34px minmax(0, 1fr);
+
+    grid-template-areas:
+      "avatar identity"
+      "avatar status"
+      "actions actions";
+
+    align-items: start;
+
+    gap:
+      6px 10px;
+
+    padding:
+      13px 12px;
+  }
+
+  .platform-user-avatar {
+    grid-area: avatar;
+
+    margin-top: 1px;
+  }
+
+  .platform-user-identity {
+    grid-area: identity;
+  }
+
+  .platform-user-identity strong,
+  .platform-user-identity span {
+    white-space: normal;
+
+    overflow-wrap: anywhere;
+  }
+
+  .platform-user-row>.platform-status {
+    grid-area: status;
+
+    justify-self: start;
+
+    min-width: 0;
+  }
+
+  .platform-user-row>.platform-organization-actions {
+    grid-area: actions;
+
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 6px;
+
+    margin-top: 5px;
+  }
+
+  .platform-user-row .platform-user-action {
+    width: 100%;
+
+    min-height: 36px;
+
+    padding:
+      0 8px;
+  }
+
+  .platform-user-row .platform-danger-action {
+    grid-column:
+      1 / -1;
+  }
+
+  /* -----------------------------
+     Messages
+  ----------------------------- */
+
+  .platform-message {
+    align-items: flex-start;
+
+    margin-bottom: 12px;
+  }
+
+  /* -----------------------------
+     Form dialogs
+  ----------------------------- */
+
+  .platform-dialog-backdrop {
+    padding:
+      12px;
+  }
+
+  .platform-dialog {
+    width: 100%;
+
+    max-height:
+      calc(100dvh - 24px);
+  }
+
+  .platform-dialog-header {
+    min-height: 62px;
+
+    padding:
+      12px 14px;
+  }
+
+  .platform-dialog-form {
+    padding:
+      14px;
+
+    gap: 14px;
+  }
+
+  .platform-dialog-form input {
+    min-height: 40px;
+
+    font-size: 12px;
+  }
+
+  .platform-dialog-actions {
+    margin:
+      4px -14px -14px;
+
+    padding:
+      11px 14px;
+  }
+}
+
+/* =======================================================
+   SMALL MOBILE
+======================================================= */
+
+@media (max-width: 440px) {
+  .platform-header {
+    padding:
+      9px 10px;
+  }
+
+  .platform-brand {
+    gap: 8px;
+  }
+
+  .platform-brand span {
+    display: none;
+  }
+
+  .platform-brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .platform-account button {
+    min-height: 36px;
+
+    padding:
+      0 10px;
+  }
+
+  .platform-content {
+    padding:
+      18px 8px 36px;
+  }
+
+  .platform-heading {
+    margin-bottom: 18px;
+  }
+
+  .platform-heading h1 {
+    font-size: 20px;
+  }
+
+  .platform-heading>span {
+    line-height: 1.5;
+  }
+
+  .platform-management {
+    border-radius:
+      var(--radius-sm);
+  }
+
+  .platform-organization-item {
+    min-width: 172px;
+  }
+
+  .platform-organization-toolbar>.platform-organization-actions {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .platform-section-heading>.platform-organization-actions {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+  .platform-section-heading>.platform-organization-actions>span {
+    width: 100%;
+  }
+
+  .platform-section-heading .platform-primary-action {
+    width: 100%;
+  }
+
+  .platform-user-row>.platform-organization-actions {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .platform-user-row .platform-user-action {
+    min-height: 38px;
+  }
+
+  /* Bottom-sheet dialogs */
+
+  .platform-dialog-backdrop,
+  .confirm-dialog-backdrop {
+    align-items: end;
+
+    padding: 0;
+  }
+
+  .platform-dialog {
+    max-height:
+      calc(100dvh - 10px);
+
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+
+    border-radius:
+      10px 10px 0 0;
+  }
+
+  .confirm-dialog {
+    max-height:
+      calc(100dvh - 10px);
+
+    overflow-y: auto;
+  }
+
+  .platform-dialog-actions,
+  .confirm-dialog-actions {
+    display: grid;
+
+    grid-template-columns:
+      1fr 1fr;
+  }
+
+  .platform-dialog-actions button,
+  .confirm-dialog-actions button {
+    width: 100%;
+
+    min-height: 40px;
+  }
+}
+
+/* =======================================================
+   VERY SMALL MOBILE
+======================================================= */
+
+@media (max-width: 360px) {
+  .platform-user-row>.platform-organization-actions {
+    grid-template-columns:
+      1fr;
+  }
+
+  .platform-user-row .platform-danger-action {
+    grid-column: auto;
+  }
+
+  .platform-organization-toolbar>.platform-organization-actions {
+    grid-template-columns:
+      1fr 1fr;
+  }
+}
+
+/* -------------------------------------------------------
+   TOUCH DEVICES
+------------------------------------------------------- */
+
+@media (hover: none) {
+
+  .platform-user-action,
+  .platform-organization-actions button,
+  .platform-primary-action,
+  .platform-account button {
+    min-height: 38px;
+  }
 }
 
 /* -------------------------------------------------------
