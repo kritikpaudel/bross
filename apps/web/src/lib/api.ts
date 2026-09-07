@@ -25,6 +25,34 @@ async function apiRequest<T>(
     path: string,
     options: RequestInit = {},
 ): Promise<T> {
+    const headers =
+        new Headers(
+            options.headers,
+        )
+
+    /*
+     * Only declare JSON when we are actually
+     * sending a request body.
+     *
+     * Sending Content-Type: application/json
+     * with an empty DELETE request can cause
+     * Fastify to reject it as Bad Request.
+     */
+    if (
+        options.body !==
+        undefined &&
+        options.body !==
+        null &&
+        !headers.has(
+            'Content-Type',
+        )
+    ) {
+        headers.set(
+            'Content-Type',
+            'application/json',
+        )
+    }
+
     const response =
         await fetch(
             `${API_URL}${path}`,
@@ -34,17 +62,14 @@ async function apiRequest<T>(
                 credentials:
                     'include',
 
-                headers: {
-                    'Content-Type':
-                        'application/json',
-
-                    ...options.headers,
-                },
+                headers,
             },
         )
 
     const data =
-        await readJson(response)
+        await readJson(
+            response,
+        )
 
     if (!response.ok) {
         throw new Error(

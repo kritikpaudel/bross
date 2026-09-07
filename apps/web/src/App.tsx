@@ -58,6 +58,47 @@ type AppState =
   | 'platform'
   | 'error'
 
+type AuthRealm =
+  | 'organization'
+  | 'platform'
+
+const AUTH_REALM_STORAGE_KEY =
+  'app-auth-realm'
+
+function getStoredAuthRealm():
+  AuthRealm | null {
+  const value =
+    sessionStorage.getItem(
+      AUTH_REALM_STORAGE_KEY,
+    )
+
+  if (
+    value ===
+    'organization' ||
+    value ===
+    'platform'
+  ) {
+    return value
+  }
+
+  return null
+}
+
+function storeAuthRealm(
+  realm: AuthRealm,
+) {
+  sessionStorage.setItem(
+    AUTH_REALM_STORAGE_KEY,
+    realm,
+  )
+}
+
+function clearStoredAuthRealm() {
+  sessionStorage.removeItem(
+    AUTH_REALM_STORAGE_KEY,
+  )
+}
+
 function App() {
   const [
     appState,
@@ -92,7 +133,63 @@ function App() {
       'loading',
     )
 
+    const storedRealm =
+      getStoredAuthRealm()
+
+    /*
+     * No authentication marker exists for this
+     * browser tab/window.
+     *
+     * Do not automatically restore an old cookie
+     * session. Show the login screen instead.
+     */
+    if (!storedRealm) {
+      setUser(null)
+      setPlatformUser(null)
+
+      setAppState(
+        'login-required',
+      )
+
+      return
+    }
+
     try {
+      if (
+        storedRealm ===
+        'platform'
+      ) {
+        const currentPlatformUser =
+          await getCurrentPlatformUser()
+
+        if (
+          currentPlatformUser
+        ) {
+          setPlatformUser(
+            currentPlatformUser,
+          )
+
+          setUser(null)
+
+          setAppState(
+            'platform',
+          )
+
+          return
+        }
+
+        clearStoredAuthRealm()
+
+        setPlatformUser(null)
+        setUser(null)
+
+        setAppState(
+          'login-required',
+        )
+
+        return
+      }
+
       const organizationUser =
         await getCurrentUser()
 
@@ -112,40 +209,17 @@ function App() {
         return
       }
 
-      const currentPlatformUser =
-        await getCurrentPlatformUser()
-
-      if (
-        currentPlatformUser
-      ) {
-        setPlatformUser(
-          currentPlatformUser,
-        )
-
-        setUser(null)
-
-        setAppState(
-          'platform',
-        )
-
-        return
-      }
+      clearStoredAuthRealm()
 
       setUser(null)
-
-      setPlatformUser(
-        null,
-      )
+      setPlatformUser(null)
 
       setAppState(
         'login-required',
       )
     } catch {
       setUser(null)
-
-      setPlatformUser(
-        null,
-      )
+      setPlatformUser(null)
 
       setAppState(
         'error',
@@ -157,6 +231,8 @@ function App() {
     try {
       await logout()
     } finally {
+      clearStoredAuthRealm()
+
       setUser(null)
 
       setActiveView(
@@ -173,6 +249,8 @@ function App() {
     try {
       await platformLogout()
     } finally {
+      clearStoredAuthRealm()
+
       setPlatformUser(
         null,
       )
@@ -242,6 +320,10 @@ function App() {
         onOrganizationAuthenticated={(
           authenticatedUser,
         ) => {
+          storeAuthRealm(
+            'organization',
+          )
+
           setUser(
             authenticatedUser,
           )
@@ -258,6 +340,10 @@ function App() {
         onPlatformAuthenticated={(
           authenticatedUser,
         ) => {
+          storeAuthRealm(
+            'platform',
+          )
+
           setPlatformUser(
             authenticatedUser,
           )

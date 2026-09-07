@@ -66,12 +66,6 @@ function getCookieOptions() {
             'strict' as const,
 
         path: '/',
-
-        maxAge:
-            Math.floor(
-                SESSION_DURATION_MS /
-                1000,
-            ),
     }
 }
 
@@ -258,12 +252,7 @@ export async function platformAuthRoutes(
             reply.setCookie(
                 PLATFORM_SESSION_COOKIE_NAME,
                 sessionToken,
-                {
-                    ...getCookieOptions(),
-
-                    expires:
-                        expiresAt,
-                },
+                getCookieOptions(),
             )
 
             const authContext =

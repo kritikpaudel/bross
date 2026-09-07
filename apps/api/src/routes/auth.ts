@@ -66,12 +66,6 @@ function getSessionCookieOptions() {
             'strict' as const,
 
         path: '/',
-
-        maxAge:
-            Math.floor(
-                SESSION_DURATION_MS /
-                1000,
-            ),
     }
 }
 
@@ -347,12 +341,7 @@ export async function authRoutes(
             reply.setCookie(
                 SESSION_COOKIE_NAME,
                 sessionToken,
-                {
-                    ...getSessionCookieOptions(),
-
-                    expires:
-                        expiresAt,
-                },
+                getSessionCookieOptions(),
             )
 
             /*
