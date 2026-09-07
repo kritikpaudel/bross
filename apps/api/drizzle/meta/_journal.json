@@ -57,6 +57,13 @@
       "when": 1788769477209,
       "tag": "0007_lethal_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788791559795,
+      "tag": "0008_orange_smasher",
+      "breakpoints": true
     }
   ]
 }

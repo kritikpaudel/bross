@@ -14,6 +14,9 @@ export * from './employee-status-history.js'
 export * from './users.js'
 export * from './sessions.js'
 
+export * from './platform-admins.js'
+export * from './platform-sessions.js'
+
 export * from './roles.js'
 export * from './permissions.js'
 export * from './role-permissions.js'

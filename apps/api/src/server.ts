@@ -7,6 +7,10 @@ import {
 } from './routes/auth.js'
 
 import {
+    platformAuthRoutes,
+} from './routes/platform-auth.js'
+
+import {
     databaseRoutes,
 } from './routes/database.js'
 
@@ -88,6 +92,12 @@ await app.register(
     },
 )
 
+/*
+ * Temporary:
+ * We will remove the public setup route
+ * in the next step when the frontend
+ * stops depending on it.
+ */
 await app.register(
     setupRoutes,
     {
@@ -97,6 +107,16 @@ await app.register(
 
 await app.register(
     authRoutes,
+    {
+        prefix: '/api',
+    },
+)
+
+/*
+ * Platform Superadmin authentication.
+ */
+await app.register(
+    platformAuthRoutes,
     {
         prefix: '/api',
     },
