@@ -79,6 +79,7 @@ export interface AuthUser {
         id: string
         name: string
         slug: string
+        logoUrl: string | null
     }
 
     roles: AuthRole[]
@@ -210,6 +211,228 @@ export async function platformLogout() {
         '/platform/auth/logout',
         {
             method: 'POST',
+        },
+    )
+}
+
+/* -------------------------------------------------------
+   PLATFORM MANAGEMENT
+------------------------------------------------------- */
+
+export type OrganizationStatus =
+    | 'active'
+    | 'suspended'
+    | 'archived'
+
+export interface PlatformOrganization {
+    id: string
+    name: string
+    slug: string
+    logoUrl: string | null
+    timezone: string
+
+    status:
+    OrganizationStatus
+
+    archivedAt:
+    string | null
+
+    createdAt:
+    string
+
+    updatedAt:
+    string
+}
+
+export interface PlatformOrganizationUser {
+    id: string
+    email: string
+
+    accountStatus:
+    | 'pending'
+    | 'active'
+    | 'disabled'
+    | 'locked'
+
+    employeeId:
+    string | null
+
+    employeeName:
+    string | null
+
+    lastLoginAt:
+    string | null
+
+    createdAt:
+    string
+
+    updatedAt?:
+    string
+}
+
+export interface CreatePlatformOrganizationPayload {
+    name: string
+    slug: string
+    timezone: string
+    logoUrl?:
+    string | null
+}
+
+export interface UpdatePlatformOrganizationPayload {
+    name?: string
+    slug?: string
+    timezone?: string
+    logoUrl?:
+    string | null
+}
+
+export async function getPlatformOrganizations() {
+    return apiRequest<{
+        organizations:
+        PlatformOrganization[]
+    }>(
+        '/platform/organizations',
+    )
+}
+
+export async function getPlatformOrganization(
+    organizationId: string,
+) {
+    return apiRequest<{
+        organization:
+        PlatformOrganization
+    }>(
+        `/platform/organizations/${organizationId}`,
+    )
+}
+
+export async function createPlatformOrganization(
+    payload:
+        CreatePlatformOrganizationPayload,
+) {
+    return apiRequest<{
+        message: string
+
+        organization:
+        PlatformOrganization
+    }>(
+        '/platform/organizations',
+        {
+            method: 'POST',
+
+            body:
+                JSON.stringify(
+                    payload,
+                ),
+        },
+    )
+}
+
+export async function updatePlatformOrganization(
+    organizationId: string,
+    payload:
+        UpdatePlatformOrganizationPayload,
+) {
+    return apiRequest<{
+        message: string
+
+        organization:
+        PlatformOrganization
+    }>(
+        `/platform/organizations/${organizationId}`,
+        {
+            method: 'PATCH',
+
+            body:
+                JSON.stringify(
+                    payload,
+                ),
+        },
+    )
+}
+
+export async function updatePlatformOrganizationStatus(
+    organizationId: string,
+    status:
+        | 'active'
+        | 'suspended',
+) {
+    return apiRequest<{
+        message: string
+
+        organization:
+        PlatformOrganization
+    }>(
+        `/platform/organizations/${organizationId}/status`,
+        {
+            method: 'PATCH',
+
+            body:
+                JSON.stringify({
+                    status,
+                }),
+        },
+    )
+}
+
+export async function archivePlatformOrganization(
+    organizationId: string,
+) {
+    return apiRequest<{
+        message: string
+
+        organization:
+        PlatformOrganization
+    }>(
+        `/platform/organizations/${organizationId}`,
+        {
+            method: 'DELETE',
+        },
+    )
+}
+
+export async function getPlatformOrganizationUsers(
+    organizationId: string,
+) {
+    return apiRequest<{
+        organization:
+        PlatformOrganization
+
+        users:
+        PlatformOrganizationUser[]
+    }>(
+        `/platform/organizations/${organizationId}/users`,
+    )
+}
+
+export async function updatePlatformUserStatus(
+    userId: string,
+    status:
+        | 'active'
+        | 'disabled',
+) {
+    return apiRequest<{
+        message: string
+
+        user: {
+            id: string
+            email: string
+
+            accountStatus:
+            | 'pending'
+            | 'active'
+            | 'disabled'
+            | 'locked'
+        }
+    }>(
+        `/platform/users/${userId}/status`,
+        {
+            method: 'PATCH',
+
+            body:
+                JSON.stringify({
+                    status,
+                }),
         },
     )
 }

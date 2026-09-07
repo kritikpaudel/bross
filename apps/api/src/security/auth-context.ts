@@ -36,6 +36,7 @@ export interface AuthenticatedUser {
         id: string
         name: string
         slug: string
+        logoUrl: string | null
     }
 
     roles: Array<{
@@ -85,6 +86,12 @@ export async function resolveAuthContext(
 
                 organizationSlug:
                     organizations.slug,
+
+                organizationStatus:
+                    organizations.status,
+
+                organizationLogoUrl:
+                    organizations.logoUrl,
             })
             .from(sessions)
             .innerJoin(
@@ -130,6 +137,8 @@ export async function resolveAuthContext(
     if (
         !result ||
         result.accountStatus !==
+        'active' ||
+        result.organizationStatus !==
         'active'
     ) {
         return null
@@ -200,6 +209,9 @@ export async function resolveAuthContext(
 
                 slug:
                     result.organizationSlug,
+
+                logoUrl:
+                    result.organizationLogoUrl,
             },
 
             roles:

@@ -63,22 +63,25 @@ export function Sidebar({
     onNavigate,
     onLogout,
 }: SidebarProps) {
+    const organizationLogo =
+        user.organization.logoUrl ??
+        '/branding/product/white-short.png'
     return (
         <aside className="sidebar">
             <div className="brand">
                 <img
-                    src="/branding/organizations/bross/logo.jpg"
-                    alt=""
+                    src={organizationLogo}
+                    alt={`${user.organization.name} logo`}
                     className="brand-logo"
                 />
 
                 <div className="brand-copy">
                     <strong>
-                        Workspace
+                        {user.organization.name}
                     </strong>
 
                     <span>
-                        Project Management System
+                        Workspace
                     </span>
                 </div>
             </div>

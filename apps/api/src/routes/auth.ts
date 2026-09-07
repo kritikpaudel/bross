@@ -15,6 +15,8 @@ import {
 } from '../db/index.js'
 
 import {
+    organizations,
+    platformSessions,
     sessions,
     users,
 } from '../db/schema/index.js'
@@ -26,6 +28,10 @@ import {
 import {
     verifyPassword,
 } from '../security/password.js'
+
+import {
+    PLATFORM_SESSION_COOKIE_NAME,
+} from '../security/platform-session.js'
 
 import {
     createSessionExpiry,
@@ -74,7 +80,7 @@ export async function authRoutes(
 ) {
     /*
      * -----------------------------------------------------
-     * LOGIN
+     * ORGANIZATION LOGIN
      * -----------------------------------------------------
      */
     app.post(
@@ -93,7 +99,7 @@ export async function authRoutes(
                     .code(400)
                     .send({
                         error:
-                            'Invalid login information.',
+                            'Enter a valid email address and password.',
                     })
             }
 
@@ -113,8 +119,20 @@ export async function authRoutes(
 
                         accountStatus:
                             users.accountStatus,
+
+                        organizationStatus:
+                            organizations.status,
                     })
-                    .from(users)
+                    .from(
+                        users,
+                    )
+                    .innerJoin(
+                        organizations,
+                        eq(
+                            users.organizationId,
+                            organizations.id,
+                        ),
+                    )
                     .where(
                         eq(
                             users.normalizedEmail,
@@ -124,31 +142,37 @@ export async function authRoutes(
                     .limit(1)
 
             /*
-             * Use the same response for:
-             *
-             * - unknown email
-             * - missing password
-             * - incorrect password
-             * - disabled account
-             * - locked account
-             *
-             * This avoids exposing whether a specific
-             * email address has an account.
+             * -------------------------------------------------
+             * EMAIL VALIDATION
+             * -------------------------------------------------
              */
-            if (
-                !user ||
-                !user.passwordHash ||
-                user.accountStatus !==
-                'active'
-            ) {
+            if (!user) {
                 return reply
                     .code(401)
                     .send({
                         error:
-                            'Invalid email or password.',
+                            'Invalid email.',
                     })
             }
 
+            /*
+             * An invited/pending account may not have
+             * created a password yet.
+             */
+            if (!user.passwordHash) {
+                return reply
+                    .code(403)
+                    .send({
+                        error:
+                            'Your account has not been activated yet.',
+                    })
+            }
+
+            /*
+             * -------------------------------------------------
+             * PASSWORD VALIDATION
+             * -------------------------------------------------
+             */
             const passwordMatches =
                 await verifyPassword(
                     parsed.data.password,
@@ -160,19 +184,120 @@ export async function authRoutes(
                     .code(401)
                     .send({
                         error:
-                            'Invalid email or password.',
+                            'Invalid password.',
                     })
             }
 
             /*
-             * Create a cryptographically random
-             * session token.
+             * -------------------------------------------------
+             * ACCOUNT STATUS
+             * -------------------------------------------------
              *
-             * The raw token goes only into the
-             * HTTP-only browser cookie.
+             * Password is verified first before exposing
+             * disabled/locked/pending account state.
+             */
+            if (
+                user.accountStatus ===
+                'disabled'
+            ) {
+                return reply
+                    .code(403)
+                    .send({
+                        error:
+                            'Your account has been disabled. Contact your administrator.',
+                    })
+            }
+
+            if (
+                user.accountStatus ===
+                'locked'
+            ) {
+                return reply
+                    .code(403)
+                    .send({
+                        error:
+                            'Your account is locked. Contact your administrator.',
+                    })
+            }
+
+            if (
+                user.organizationStatus ===
+                'suspended'
+            ) {
+                return reply
+                    .code(403)
+                    .send({
+                        error:
+                            'Your organization has been suspended. Contact your administrator.',
+                    })
+            }
+
+            if (
+                user.organizationStatus ===
+                'archived'
+            ) {
+                return reply
+                    .code(403)
+                    .send({
+                        error:
+                            'Your organization is no longer active. Contact your administrator.',
+                    })
+            }
+
+            /*
+             * -------------------------------------------------
+             * CLEAR EXISTING PLATFORM SESSION
+             * -------------------------------------------------
              *
-             * PostgreSQL stores only the SHA-256
-             * hash of that token.
+             * Organization and Platform authentication
+             * are mutually exclusive in the same browser.
+             */
+            const existingPlatformToken =
+                request.cookies[
+                PLATFORM_SESSION_COOKIE_NAME
+                ]
+
+            if (
+                existingPlatformToken
+            ) {
+                const existingPlatformTokenHash =
+                    hashSessionToken(
+                        existingPlatformToken,
+                    )
+
+                await db
+                    .update(
+                        platformSessions,
+                    )
+                    .set({
+                        revokedAt:
+                            new Date(),
+                    })
+                    .where(
+                        and(
+                            eq(
+                                platformSessions.tokenHash,
+                                existingPlatformTokenHash,
+                            ),
+
+                            isNull(
+                                platformSessions.revokedAt,
+                            ),
+                        ),
+                    )
+            }
+
+            reply.clearCookie(
+                PLATFORM_SESSION_COOKIE_NAME,
+                {
+                    path: '/',
+                },
+            )
+
+            /*
+             * -------------------------------------------------
+             * CREATE ORGANIZATION SESSION
+             * -------------------------------------------------
              */
             const sessionToken =
                 createSessionToken()
@@ -186,7 +311,9 @@ export async function authRoutes(
                 createSessionExpiry()
 
             await db
-                .insert(sessions)
+                .insert(
+                    sessions,
+                )
                 .values({
                     userId:
                         user.id,
@@ -200,7 +327,9 @@ export async function authRoutes(
                 })
 
             await db
-                .update(users)
+                .update(
+                    users,
+                )
                 .set({
                     lastLoginAt:
                         new Date(),
@@ -227,12 +356,8 @@ export async function authRoutes(
             )
 
             /*
-             * Resolve the full authenticated user
-             * through our shared authentication
-             * context.
-             *
-             * This avoids duplicating session/user/
-             * organization/role lookup logic here.
+             * Resolve the complete authenticated user,
+             * including organization and role information.
              */
             const authContext =
                 await resolveAuthContext(
@@ -246,7 +371,8 @@ export async function authRoutes(
             }
 
             return reply.send({
-                authenticated: true,
+                authenticated:
+                    true,
 
                 user:
                     authContext.user,
@@ -256,7 +382,7 @@ export async function authRoutes(
 
     /*
      * -----------------------------------------------------
-     * CURRENT AUTHENTICATED USER
+     * CURRENT AUTHENTICATED ORGANIZATION USER
      * -----------------------------------------------------
      */
     app.get(
@@ -301,10 +427,12 @@ export async function authRoutes(
             }
 
             /*
-             * Track session activity.
+             * Track current session activity.
              */
             await db
-                .update(sessions)
+                .update(
+                    sessions,
+                )
                 .set({
                     lastSeenAt:
                         new Date(),
@@ -317,7 +445,8 @@ export async function authRoutes(
                 )
 
             return reply.send({
-                authenticated: true,
+                authenticated:
+                    true,
 
                 user:
                     authContext.user,
@@ -327,7 +456,7 @@ export async function authRoutes(
 
     /*
      * -----------------------------------------------------
-     * LOGOUT
+     * ORGANIZATION LOGOUT
      * -----------------------------------------------------
      */
     app.post(
@@ -348,14 +477,13 @@ export async function authRoutes(
                     )
 
                 /*
-                 * Revoke the server-side session.
-                 *
-                 * We do not simply delete the browser
-                 * cookie and leave the database session
-                 * valid.
+                 * Revoke the server-side session,
+                 * not only the browser cookie.
                  */
                 await db
-                    .update(sessions)
+                    .update(
+                        sessions,
+                    )
                     .set({
                         revokedAt:
                             new Date(),

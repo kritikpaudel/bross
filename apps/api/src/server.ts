@@ -11,6 +11,10 @@ import {
 } from './routes/platform-auth.js'
 
 import {
+    platformManagementRoutes,
+} from './routes/platform-management.js'
+
+import {
     databaseRoutes,
 } from './routes/database.js'
 
@@ -103,6 +107,13 @@ await app.register(
 )
 
 await app.register(
+    platformManagementRoutes,
+    {
+        prefix: '/api',
+    },
+)
+
+await app.register(
     hierarchyLevelRoutes,
     {
         prefix: '/api',
@@ -126,7 +137,7 @@ async function start() {
         })
 
         console.log(
-            `Bross Work OS API running on port ${port}`,
+            `API running on port ${port}`,
         )
     } catch (error) {
         app.log.error(

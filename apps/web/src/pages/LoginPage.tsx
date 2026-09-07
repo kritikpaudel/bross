@@ -70,6 +70,26 @@ export function LoginPage({
         setError(null)
     }
 
+    function handleEmailChange(
+        value: string,
+    ) {
+        setEmail(value)
+
+        if (error) {
+            setError(null)
+        }
+    }
+
+    function handlePasswordChange(
+        value: string,
+    ) {
+        setPassword(value)
+
+        if (error) {
+            setError(null)
+        }
+    }
+
     async function handleSubmit(
         event: SyntheticEvent<
             HTMLFormElement,
@@ -78,12 +98,17 @@ export function LoginPage({
     ) {
         event.preventDefault()
 
+        if (submitting) {
+            return
+        }
+
         setError(null)
         setSubmitting(true)
 
         try {
             if (
-                mode === 'platform'
+                mode ===
+                'platform'
             ) {
                 const result =
                     await platformLogin(
@@ -111,7 +136,7 @@ export function LoginPage({
             setError(
                 loginError instanceof Error
                     ? loginError.message
-                    : 'Unable to sign in.',
+                    : 'Unable to sign in. Please try again.',
             )
         } finally {
             setSubmitting(false)
@@ -167,6 +192,10 @@ export function LoginPage({
                                 ? 'active'
                                 : ''
                         }
+                        aria-pressed={
+                            mode ===
+                            'organization'
+                        }
                         onClick={() =>
                             changeMode(
                                 'organization',
@@ -183,6 +212,10 @@ export function LoginPage({
                                 'platform'
                                 ? 'active'
                                 : ''
+                        }
+                        aria-pressed={
+                            mode ===
+                            'platform'
                         }
                         onClick={() =>
                             changeMode(
@@ -209,15 +242,17 @@ export function LoginPage({
                             type="email"
                             value={email}
                             onChange={(event) =>
-                                setEmail(
-                                    event.target
-                                        .value,
+                                handleEmailChange(
+                                    event.target.value,
                                 )
                             }
                             autoComplete="email"
                             required
                             maxLength={254}
                             autoFocus
+                            disabled={
+                                submitting
+                            }
                         />
                     </label>
 
@@ -230,23 +265,39 @@ export function LoginPage({
                             type="password"
                             value={password}
                             onChange={(event) =>
-                                setPassword(
-                                    event.target
-                                        .value,
+                                handlePasswordChange(
+                                    event.target.value,
                                 )
                             }
                             autoComplete="current-password"
                             required
                             maxLength={128}
+                            disabled={
+                                submitting
+                            }
                         />
                     </label>
 
                     {error && (
                         <div
-                            className="login-error"
+                            className="login-message login-message-error"
                             role="alert"
+                            aria-live="assertive"
                         >
-                            {error}
+                            <span
+                                className="login-message-icon"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path d="M12 8v5M12 16.5v.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                            </span>
+
+                            <span>
+                                {error}
+                            </span>
                         </div>
                     )}
 

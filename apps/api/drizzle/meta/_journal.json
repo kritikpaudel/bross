@@ -64,6 +64,20 @@
       "when": 1788791559795,
       "tag": "0008_orange_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788803580991,
+      "tag": "0009_absent_blazing_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788805929898,
+      "tag": "0010_medical_butterfly",
+      "breakpoints": true
     }
   ]
 }

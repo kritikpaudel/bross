@@ -17,6 +17,7 @@ import {
 import {
     platformAdmins,
     platformSessions,
+    sessions,
 } from '../db/schema/index.js'
 
 import {
@@ -35,6 +36,7 @@ import {
     createSessionExpiry,
     createSessionToken,
     hashSessionToken,
+    SESSION_COOKIE_NAME,
     SESSION_DURATION_MS,
 } from '../security/session.js'
 
@@ -163,6 +165,50 @@ export async function platformAuthRoutes(
                             'Invalid email or password.',
                     })
             }
+
+            /*
+ * Organization and Platform authentication
+ * are mutually exclusive in one browser.
+ */
+            const existingOrganizationToken =
+                request.cookies[
+                SESSION_COOKIE_NAME
+                ]
+
+            if (existingOrganizationToken) {
+                const existingOrganizationTokenHash =
+                    hashSessionToken(
+                        existingOrganizationToken,
+                    )
+
+                await db
+                    .update(
+                        sessions,
+                    )
+                    .set({
+                        revokedAt:
+                            new Date(),
+                    })
+                    .where(
+                        and(
+                            eq(
+                                sessions.tokenHash,
+                                existingOrganizationTokenHash,
+                            ),
+
+                            isNull(
+                                sessions.revokedAt,
+                            ),
+                        ),
+                    )
+            }
+
+            reply.clearCookie(
+                SESSION_COOKIE_NAME,
+                {
+                    path: '/',
+                },
+            )
 
             const sessionToken =
                 createSessionToken()
