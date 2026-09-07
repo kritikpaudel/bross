@@ -8,20 +8,37 @@ import type {
 
 import {
     login,
+    platformLogin,
 } from '../lib/api'
 
 import type {
     AuthUser,
+    PlatformUser,
 } from '../lib/api'
 
+export type LoginMode =
+    | 'organization'
+    | 'platform'
+
 interface LoginPageProps {
-    onAuthenticated:
+    onOrganizationAuthenticated:
     (user: AuthUser) => void
+
+    onPlatformAuthenticated:
+    (user: PlatformUser) => void
 }
 
 export function LoginPage({
-    onAuthenticated,
+    onOrganizationAuthenticated,
+    onPlatformAuthenticated,
 }: LoginPageProps) {
+    const [
+        mode,
+        setMode,
+    ] = useState<LoginMode>(
+        'organization',
+    )
+
     const [
         email,
         setEmail,
@@ -44,6 +61,15 @@ export function LoginPage({
         null,
     )
 
+    function changeMode(
+        nextMode: LoginMode,
+    ) {
+        setMode(nextMode)
+
+        setPassword('')
+        setError(null)
+    }
+
     async function handleSubmit(
         event: SyntheticEvent<
             HTMLFormElement,
@@ -56,13 +82,29 @@ export function LoginPage({
         setSubmitting(true)
 
         try {
+            if (
+                mode === 'platform'
+            ) {
+                const result =
+                    await platformLogin(
+                        email,
+                        password,
+                    )
+
+                onPlatformAuthenticated(
+                    result.user,
+                )
+
+                return
+            }
+
             const result =
                 await login(
                     email,
                     password,
                 )
 
-            onAuthenticated(
+            onOrganizationAuthenticated(
                 result.user,
             )
         } catch (loginError) {
@@ -106,14 +148,57 @@ export function LoginPage({
                     </h1>
 
                     <p>
-                        Use your Bross Work OS
-                        account to continue.
+                        {mode ===
+                            'platform'
+                            ? 'Platform administration access.'
+                            : 'Use your organization account to continue.'}
                     </p>
+                </div>
+
+                <div
+                    className="login-mode-switch"
+                    aria-label="Account type"
+                >
+                    <button
+                        type="button"
+                        className={
+                            mode ===
+                                'organization'
+                                ? 'active'
+                                : ''
+                        }
+                        onClick={() =>
+                            changeMode(
+                                'organization',
+                            )
+                        }
+                    >
+                        Organization
+                    </button>
+
+                    <button
+                        type="button"
+                        className={
+                            mode ===
+                                'platform'
+                                ? 'active'
+                                : ''
+                        }
+                        onClick={() =>
+                            changeMode(
+                                'platform',
+                            )
+                        }
+                    >
+                        Platform administration
+                    </button>
                 </div>
 
                 <form
                     className="login-form"
-                    onSubmit={handleSubmit}
+                    onSubmit={
+                        handleSubmit
+                    }
                 >
                     <label className="login-field">
                         <span>
@@ -125,7 +210,8 @@ export function LoginPage({
                             value={email}
                             onChange={(event) =>
                                 setEmail(
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 )
                             }
                             autoComplete="email"
@@ -145,7 +231,8 @@ export function LoginPage({
                             value={password}
                             onChange={(event) =>
                                 setPassword(
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 )
                             }
                             autoComplete="current-password"
@@ -166,11 +253,16 @@ export function LoginPage({
                     <button
                         type="submit"
                         className="login-primary"
-                        disabled={submitting}
+                        disabled={
+                            submitting
+                        }
                     >
                         {submitting
                             ? 'Signing in…'
-                            : 'Sign in'}
+                            : mode ===
+                                'platform'
+                                ? 'Sign in to platform'
+                                : 'Sign in'}
                     </button>
                 </form>
             </section>

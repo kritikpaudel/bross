@@ -57,45 +57,7 @@ async function apiRequest<T>(
 }
 
 /* -------------------------------------------------------
-   SETUP
-------------------------------------------------------- */
-
-export interface SetupPayload {
-    organizationName: string
-    organizationSlug: string
-    timezone: string
-    email: string
-    password: string
-}
-
-export async function getSetupStatus() {
-    return apiRequest<{
-        configured: boolean
-    }>(
-        '/setup/status',
-    )
-}
-
-export async function createInitialSetup(
-    payload: SetupPayload,
-) {
-    return apiRequest<{
-        configured: true
-    }>(
-        '/setup',
-        {
-            method: 'POST',
-
-            body:
-                JSON.stringify(
-                    payload,
-                ),
-        },
-    )
-}
-
-/* -------------------------------------------------------
-   AUTHENTICATION
+   ORGANIZATION AUTHENTICATION
 ------------------------------------------------------- */
 
 export interface AuthRole {
@@ -183,12 +145,81 @@ export async function logout() {
 }
 
 /* -------------------------------------------------------
+   PLATFORM AUTHENTICATION
+------------------------------------------------------- */
+
+export interface PlatformUser {
+    id: string
+    fullName: string
+    email: string
+}
+
+export async function platformLogin(
+    email: string,
+    password: string,
+) {
+    return apiRequest<{
+        authenticated: true
+        user: PlatformUser
+    }>(
+        '/platform/auth/login',
+        {
+            method: 'POST',
+
+            body:
+                JSON.stringify({
+                    email,
+                    password,
+                }),
+        },
+    )
+}
+
+export async function getCurrentPlatformUser() {
+    const response =
+        await fetch(
+            `${API_URL}/platform/auth/me`,
+            {
+                credentials:
+                    'include',
+            },
+        )
+
+    if (
+        response.status === 401
+    ) {
+        return null
+    }
+
+    const data =
+        await readJson(response)
+
+    if (!response.ok) {
+        throw new Error(
+            'Unable to check platform session.',
+        )
+    }
+
+    return data.user as PlatformUser
+}
+
+export async function platformLogout() {
+    await apiRequest<{
+        authenticated: false
+    }>(
+        '/platform/auth/logout',
+        {
+            method: 'POST',
+        },
+    )
+}
+
+/* -------------------------------------------------------
    ORGANIZATION HIERARCHY
 ------------------------------------------------------- */
 
 export interface HierarchyLevel {
     id: string
-
     name: string
 
     description:
@@ -197,11 +228,9 @@ export interface HierarchyLevel {
     position: number
 
     isGovernance: boolean
-
     isActive: boolean
 
     createdAt: string
-
     updatedAt: string
 }
 

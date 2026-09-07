@@ -24,13 +24,15 @@ import {
 } from './components/Topbar'
 
 import {
+  getCurrentPlatformUser,
   getCurrentUser,
-  getSetupStatus,
   logout,
+  platformLogout,
 } from './lib/api'
 
 import type {
   AuthUser,
+  PlatformUser,
 } from './lib/api'
 
 import {
@@ -46,14 +48,14 @@ import {
 } from './pages/OrganizationStructurePage'
 
 import {
-  SetupPage,
-} from './pages/SetupPage'
+  PlatformAdminPage,
+} from './pages/PlatformAdminPage'
 
 type AppState =
   | 'loading'
-  | 'setup-required'
   | 'login-required'
-  | 'authenticated'
+  | 'organization'
+  | 'platform'
   | 'error'
 
 function App() {
@@ -72,6 +74,13 @@ function App() {
   )
 
   const [
+    platformUser,
+    setPlatformUser,
+  ] = useState<PlatformUser | null>(
+    null,
+  )
+
+  const [
     activeView,
     setActiveView,
   ] = useState<AppView>(
@@ -79,44 +88,64 @@ function App() {
   )
 
   async function initializeApp() {
-    setAppState('loading')
+    setAppState(
+      'loading',
+    )
 
     try {
-      const setup =
-        await getSetupStatus()
-
-      if (!setup.configured) {
-        setUser(null)
-
-        setAppState(
-          'setup-required',
-        )
-
-        return
-      }
-
-      const currentUser =
+      const organizationUser =
         await getCurrentUser()
 
-      if (!currentUser) {
-        setUser(null)
+      if (organizationUser) {
+        setUser(
+          organizationUser,
+        )
+
+        setPlatformUser(
+          null,
+        )
 
         setAppState(
-          'login-required',
+          'organization',
         )
 
         return
       }
 
-      setUser(
-        currentUser,
+      const currentPlatformUser =
+        await getCurrentPlatformUser()
+
+      if (
+        currentPlatformUser
+      ) {
+        setPlatformUser(
+          currentPlatformUser,
+        )
+
+        setUser(null)
+
+        setAppState(
+          'platform',
+        )
+
+        return
+      }
+
+      setUser(null)
+
+      setPlatformUser(
+        null,
       )
 
       setAppState(
-        'authenticated',
+        'login-required',
       )
     } catch {
       setUser(null)
+
+      setPlatformUser(
+        null,
+      )
 
       setAppState(
         'error',
@@ -124,7 +153,7 @@ function App() {
     }
   }
 
-  async function handleLogout() {
+  async function handleOrganizationLogout() {
     try {
       await logout()
     } finally {
@@ -140,12 +169,27 @@ function App() {
     }
   }
 
+  async function handlePlatformLogout() {
+    try {
+      await platformLogout()
+    } finally {
+      setPlatformUser(
+        null,
+      )
+
+      setAppState(
+        'login-required',
+      )
+    }
+  }
+
   useEffect(() => {
     void initializeApp()
   }, [])
 
   if (
-    appState === 'loading'
+    appState ===
+    'loading'
   ) {
     return (
       <main className="app-loading">
@@ -162,7 +206,8 @@ function App() {
   }
 
   if (
-    appState === 'error'
+    appState ===
+    'error'
   ) {
     return (
       <main className="app-loading">
@@ -190,34 +235,56 @@ function App() {
 
   if (
     appState ===
-    'setup-required'
-  ) {
-    return (
-      <SetupPage
-        onComplete={() =>
-          void initializeApp()
-        }
-      />
-    )
-  }
-
-  if (
-    appState ===
     'login-required'
   ) {
     return (
       <LoginPage
-        onAuthenticated={(
+        onOrganizationAuthenticated={(
           authenticatedUser,
         ) => {
           setUser(
             authenticatedUser,
           )
 
+          setPlatformUser(
+            null,
+          )
+
           setAppState(
-            'authenticated',
+            'organization',
           )
         }}
+
+        onPlatformAuthenticated={(
+          authenticatedUser,
+        ) => {
+          setPlatformUser(
+            authenticatedUser,
+          )
+
+          setUser(null)
+
+          setAppState(
+            'platform',
+          )
+        }}
+      />
+    )
+  }
+
+  if (
+    appState ===
+    'platform' &&
+    platformUser
+  ) {
+    return (
+      <PlatformAdminPage
+        user={
+          platformUser
+        }
+        onLogout={() =>
+          void handlePlatformLogout()
+        }
       />
     )
   }
@@ -254,7 +321,7 @@ function App() {
             setActiveView
           }
           onLogout={() =>
-            void handleLogout()
+            void handleOrganizationLogout()
           }
         />
 

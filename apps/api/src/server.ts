@@ -23,10 +23,6 @@ import {
 } from './routes/hierarchy-levels.js'
 
 import {
-    setupRoutes,
-} from './routes/setup.js'
-
-import {
     createTrustedOriginGuard,
     getAllowedOrigins,
 } from './security/origin.js'
@@ -92,19 +88,6 @@ await app.register(
     },
 )
 
-/*
- * Temporary:
- * We will remove the public setup route
- * in the next step when the frontend
- * stops depending on it.
- */
-await app.register(
-    setupRoutes,
-    {
-        prefix: '/api',
-    },
-)
-
 await app.register(
     authRoutes,
     {
@@ -112,9 +95,6 @@ await app.register(
     },
 )
 
-/*
- * Platform Superadmin authentication.
- */
 await app.register(
     platformAuthRoutes,
     {
